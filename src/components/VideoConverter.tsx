@@ -11,7 +11,7 @@ import { Dropzone } from './Dropzone'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ProgressTrack, ProgressIndicator } from '@/components/ui/progress'
+import { Progress } from '@/components/ui/progress'
 
 const ACCEPT_VIDEO = 'video/mp4,video/webm,video/quicktime,video/x-msvideo,video/avi,video/mov'
 
@@ -136,12 +136,7 @@ export function VideoConverter() {
 
         {(phase === 'loading' || phase === 'converting') && (
           <div className="space-y-2">
-            <ProgressTrack className="h-2 w-full">
-              <ProgressIndicator
-                className="h-full bg-primary transition-all"
-                style={{ width: `${Math.round(progressValue * 100)}%` }}
-              />
-            </ProgressTrack>
+            <Progress value={Math.round(progressValue * 100)} />
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span>{progressLabel}</span>
               <span>{Math.round(progressValue * 100)}%</span>
