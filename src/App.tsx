@@ -9,7 +9,7 @@ function App() {
             convert.sethworks
           </h1>
           <p className="mx-auto max-w-lg text-balance text-muted-foreground">
-            Drag or click to add images and videos, pick the output format, and convert — all on your device.
+            Convert media without the cloud — no uploads, no servers, no waiting.
           </p>
         </div>
 

@@ -259,8 +259,8 @@ export function ConverterQueue() {
       <FileDropzone onFiles={addFiles} />
 
       {items.length > 0 && (
-        <Card>
-          <CardContent className="space-y-4 p-4">
+        <Card size="sm">
+          <CardContent className="space-y-3 p-3">
             <div className="space-y-3">
               {items.map((item) => {
                 let formatOptions = imageFormatOptions
@@ -277,7 +277,7 @@ export function ConverterQueue() {
                   <div
                     key={item.id}
                     className={cn(
-                      'flex flex-col gap-3 rounded-xl border p-4 transition-colors',
+                      'flex flex-col gap-2 rounded-xl border p-3 transition-colors',
                       item.status === 'converting' ? 'border-primary/40 bg-primary/5' : 'border-border bg-card'
                     )}
                   >
@@ -384,7 +384,7 @@ export function ConverterQueue() {
               })}
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-3">
               <p className="text-sm text-muted-foreground">
                 {items.length} file{items.length === 1 ? '' : 's'} added
               </p>
