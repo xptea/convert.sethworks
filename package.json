@@ -5,9 +5,10 @@
   "type": "module",
   "scripts": {
     "copy:ffmpeg": "node scripts/copy-ffmpeg.js",
-    "postinstall": "bun run copy:ffmpeg",
+    "postinstall": "node scripts/copy-ffmpeg.js",
     "dev": "vite",
-    "build": "tsc -b && bun run copy:ffmpeg && vite build",
+    "build": "tsc -b && node scripts/copy-ffmpeg.js && vite build",
+    "test": "node scripts/e2e-smoke.js",
     "lint": "oxlint",
     "preview": "vite preview"
   },
