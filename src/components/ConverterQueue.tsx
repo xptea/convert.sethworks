@@ -60,9 +60,8 @@ function defaultFormat(file: File): ImageFormat | VideoFormat {
   return 'jpg'
 }
 
-function defaultQuality(type: FileType): number {
-  if (type === 'image') return 0.85
-  return 0.6
+function defaultQuality(_type: FileType): number {
+  return 1
 }
 
 function itemFileName(item: QueueItem): string {
