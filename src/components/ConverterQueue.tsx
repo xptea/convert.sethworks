@@ -8,9 +8,8 @@ import { FileDropzone } from './FileDropzone'
 import { FormatPicker } from './FormatPicker'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Progress } from '@/components/ui/progress'
-import { Image, Video, X, Download, Play, RotateCcw, FileArchive, Settings2 } from 'lucide-react'
+import { Image, Video, X, Download, Play, RotateCcw, FileArchive, ArrowRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type FileType = 'image' | 'video'
@@ -58,9 +57,21 @@ function formatBytes(bytes: number) {
   return `${(bytes / Math.pow(1024, i)).toFixed(i === 0 ? 0 : 2)} ${sizes[i]}`
 }
 
-const videoGroups = {
-  'Video containers': VIDEO_OUTPUTS.filter((o) => o.mime.startsWith('video/')),
-  'Audio only': VIDEO_OUTPUTS.filter((o) => o.mime.startsWith('audio/')),
+function SizeComparison({ original, converted }: { original: number; converted: number }) {
+  const diff = converted - original
+  const percent = original === 0 ? 0 : Math.round((diff / original) * 100)
+  const smaller = converted <= original
+
+  return (
+    <span className="inline-flex items-center gap-1 text-xs">
+      <span className="text-muted-foreground">{formatBytes(original)}</span>
+      <ArrowRight className="size-3 text-muted-foreground" />
+      <span className={cn(smaller ? 'text-emerald-400' : 'text-red-400')}>
+        {formatBytes(converted)}{' '}
+        ({smaller ? '-' : '+'}{Math.abs(percent)}%)
+      </span>
+    </span>
+  )
 }
 
 export function ConverterQueue() {
@@ -179,6 +190,9 @@ export function ConverterQueue() {
   const hasImages = items.some((i) => i.type === 'image')
   const hasVideos = items.some((i) => i.type === 'video')
 
+  const imageFormatOptions = IMAGE_OUTPUTS.map((o) => ({ value: o.value, label: o.label }))
+  const videoFormatOptions = VIDEO_OUTPUTS.map((o) => ({ value: o.value, label: o.label }))
+
   return (
     <div className="mx-auto w-full max-w-3xl space-y-8">
       <FileDropzone onFiles={addFiles} />
@@ -187,41 +201,22 @@ export function ConverterQueue() {
         <Card>
           <CardContent className="space-y-4 p-4">
             {(hasImages || hasVideos) && (
-              <div className="flex flex-wrap items-center gap-3 border-b pb-4">
-                <Settings2 className="size-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Set all:</span>
+              <div className="flex flex-wrap items-center justify-end gap-2">
                 {hasImages && (
-                  <Select onValueChange={(v) => setAllFormats('image', v as ImageFormat)}>
-                    <SelectTrigger size="sm" className="w-36">
-                      <SelectValue placeholder="Image format" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {IMAGE_OUTPUTS.map((o) => (
-                        <SelectItem key={o.value} value={o.value}>
-                          {o.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FormatPicker
+                    placeholder="Set all images"
+                    options={imageFormatOptions}
+                    onChange={(v) => setAllFormats('image', v as ImageFormat)}
+                    triggerClassName="w-44"
+                  />
                 )}
                 {hasVideos && (
-                  <Select onValueChange={(v) => setAllFormats('video', v as VideoFormat)}>
-                    <SelectTrigger size="sm" className="w-44">
-                      <SelectValue placeholder="Video format" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(videoGroups).map(([group, options]) => (
-                        <SelectGroup key={group}>
-                          <SelectLabel>{group}</SelectLabel>
-                          {options.map((o) => (
-                            <SelectItem key={o.value} value={o.value}>
-                              {o.label}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FormatPicker
+                    placeholder="Set all videos"
+                    options={videoFormatOptions}
+                    onChange={(v) => setAllFormats('video', v as VideoFormat)}
+                    triggerClassName="w-44"
+                  />
                 )}
               </div>
             )}
@@ -229,9 +224,7 @@ export function ConverterQueue() {
             <div className="space-y-3">
               {items.map((item) => {
                 const isImage = item.type === 'image'
-                const formatOptions = isImage
-                  ? IMAGE_OUTPUTS.map((o) => ({ value: o.value, label: o.label }))
-                  : VIDEO_OUTPUTS.map((o) => ({ value: o.value, label: o.label }))
+                const formatOptions = isImage ? imageFormatOptions : videoFormatOptions
 
                 return (
                   <div
@@ -248,8 +241,14 @@ export function ConverterQueue() {
                         </div>
                         <div className="min-w-0">
                           <p className="truncate text-sm font-medium text-foreground" title={item.file.name}>
-                            {item.file.name}{' '}
-                            <span className="text-xs text-muted-foreground">({formatBytes(item.file.size)})</span>
+                            {item.file.name}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {item.status === 'done' && item.outputBlob ? (
+                              <SizeComparison original={item.file.size} converted={item.outputBlob.size} />
+                            ) : (
+                              <span>{formatBytes(item.file.size)}</span>
+                            )}
                           </p>
                         </div>
                       </div>
@@ -319,10 +318,12 @@ export function ConverterQueue() {
                   <Play className="mr-1.5 size-4" />
                   Convert all
                 </Button>
-                <Button variant="secondary" onClick={downloadAll} disabled={!hasDone}>
-                  <FileArchive className="mr-1.5 size-4" />
-                  Download all
-                </Button>
+                {hasDone && (
+                  <Button variant="secondary" onClick={downloadAll}>
+                    <FileArchive className="mr-1.5 size-4" />
+                    Download all
+                  </Button>
+                )}
               </div>
             </div>
           </CardContent>

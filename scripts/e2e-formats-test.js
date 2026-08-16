@@ -24,19 +24,14 @@ async function run() {
   await page.waitForSelector('text=Convert all')
   console.log('Files added')
 
-  // Test image -> BMP via FormatPicker grid.
-  const firstItem = page.locator('[data-format-picker]').first()
-  // Actually FormatPicker does not have a data attr. Use button with text "Change".
-  const firstTrigger = page.getByRole('button', { name: /Change$/ }).first()
-  await firstTrigger.click()
+  // Open first format picker (image, currently JPEG) and select BMP.
+  await page.getByRole('button', { name: 'JPEG' }).first().click()
   await page.getByRole('button', { name: 'BMP' }).click()
   console.log('Selected BMP for first image')
 
-  // Test video -> MP3 (audio) via FormatPicker grid.
-  const triggers = page.getByRole('button', { name: /Change$/ })
-  const count = await triggers.count()
-  const lastTrigger = triggers.nth(count - 1)
-  await lastTrigger.click()
+  // Open second format picker (video, currently MP4 (H.264)) and select MP3.
+  const mp4Triggers = page.getByRole('button', { name: 'MP4 (H.264)' })
+  await mp4Triggers.first().click()
   await page.getByRole('button', { name: 'MP3 (audio)' }).click()
   console.log('Selected MP3 for video')
 

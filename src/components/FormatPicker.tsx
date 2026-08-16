@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
+import { Popover } from '@base-ui/react/popover'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Search, X } from 'lucide-react'
+import { Search, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface FormatOption {
@@ -10,7 +11,8 @@ interface FormatOption {
 }
 
 interface FormatPickerProps {
-  value: string
+  value?: string
+  placeholder?: string
   options: FormatOption[]
   onChange: (value: string) => void
   disabled?: boolean
@@ -19,6 +21,7 @@ interface FormatPickerProps {
 
 export function FormatPicker({
   value,
+  placeholder,
   options,
   onChange,
   disabled,
@@ -26,28 +29,9 @@ export function FormatPicker({
 }: FormatPickerProps) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
-  const panelRef = useRef<HTMLDivElement>(null)
 
-  const selected = options.find((o) => o.value === value) ?? options[0]
+  const selected = options.find((o) => o.value === value)
   const filtered = options.filter((o) => o.label.toLowerCase().includes(query.toLowerCase()))
-
-  useEffect(() => {
-    if (!open) return
-    function handleClick(e: MouseEvent) {
-      if (!panelRef.current?.contains(e.target as Node)) {
-        setOpen(false)
-      }
-    }
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpen(false)
-    }
-    document.addEventListener('mousedown', handleClick)
-    document.addEventListener('keydown', handleKey)
-    return () => {
-      document.removeEventListener('mousedown', handleClick)
-      document.removeEventListener('keydown', handleKey)
-    }
-  }, [open])
 
   function select(next: string) {
     onChange(next)
@@ -56,61 +40,57 @@ export function FormatPicker({
   }
 
   return (
-    <div ref={panelRef} className="relative inline-block w-full">
-      <Button
-        type="button"
-        variant="outline"
+    <Popover.Root open={open} onOpenChange={setOpen}>
+      <Popover.Trigger
         disabled={disabled}
-        onClick={() => setOpen((v) => !v)}
-        className={cn('w-full justify-between gap-2', triggerClassName)}
+        className={cn(
+          'flex w-full items-center justify-between gap-2 rounded-lg border border-input bg-background px-3 py-2 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50',
+          triggerClassName
+        )}
       >
-        <span>{selected?.label ?? value}</span>
-        <span className="text-xs text-muted-foreground">{open ? 'Close' : 'Change'}</span>
-      </Button>
+        <span className="truncate">{selected?.label ?? placeholder ?? 'Select format'}</span>
+        <ChevronDown className={cn('size-4 shrink-0 text-muted-foreground transition-transform', open && 'rotate-180')} />
+      </Popover.Trigger>
 
-      {open && (
-        <div className="z-10 mt-2 w-full rounded-xl border border-border bg-popover p-3 shadow-lg ring-1 ring-foreground/10">
-          <div className="relative mb-3">
-            <Search className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              autoFocus
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search format"
-              className="pl-9"
-            />
-          </div>
-
-          <div className="grid max-h-60 grid-cols-3 gap-2 overflow-y-auto sm:grid-cols-4">
-            {filtered.map((o) => (
-              <Button
-                key={o.value}
-                type="button"
-                variant={o.value === value ? 'default' : 'secondary'}
-                onClick={() => select(o.value)}
-                className={cn(
-                  'h-10 w-full text-sm font-medium transition-all',
-                  o.value === value && 'ring-2 ring-ring ring-offset-1 ring-offset-background'
-                )}
-              >
-                {o.label}
-              </Button>
-            ))}
-          </div>
-
-          {filtered.length === 0 && (
-            <p className="py-4 text-center text-sm text-muted-foreground">No formats found</p>
-          )}
-
-          <button
-            type="button"
-            onClick={() => setOpen(false)}
-            className="mt-3 flex w-full items-center justify-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+      <Popover.Portal>
+        <Popover.Positioner side="bottom" align="start" sideOffset={4}>
+          <Popover.Popup
+            className="z-50 w-80 rounded-xl border border-border bg-popover p-3 shadow-lg ring-1 ring-foreground/10 outline-none"
           >
-            <X className="size-3" /> Close
-          </button>
-        </div>
-      )}
-    </div>
+            <div className="relative mb-3">
+              <Search className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                autoFocus
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search format"
+                className="pl-9"
+              />
+            </div>
+
+            <div className="grid max-h-60 grid-cols-3 gap-2 overflow-y-auto sm:grid-cols-4">
+              {filtered.map((o) => (
+                <Button
+                  key={o.value}
+                  type="button"
+                  variant={o.value === value ? 'default' : 'secondary'}
+                  onClick={() => select(o.value)}
+                  className={cn(
+                    'h-10 w-full text-sm font-medium transition-all',
+                    o.value === value && 'ring-2 ring-ring ring-offset-1 ring-offset-background'
+                  )}
+                >
+                  {o.label}
+                </Button>
+              ))}
+            </div>
+
+            {filtered.length === 0 && (
+              <p className="py-4 text-center text-sm text-muted-foreground">No formats found</p>
+            )}
+          </Popover.Popup>
+        </Popover.Positioner>
+      </Popover.Portal>
+    </Popover.Root>
   )
 }
