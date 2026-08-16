@@ -85,7 +85,7 @@ export function FileDropzone({ onFiles }: FileDropzoneProps) {
           Drop files here or click to browse
         </p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Drop images, videos, and audio in 100+ formats — including RAW, HEIC, TIFF, MP4, MKV, MOV, MP3, FLAC, and more.
+          Drop images, videos, and audio in 100+ formats
         </p>
       </div>
 

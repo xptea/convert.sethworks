@@ -53,9 +53,15 @@ export function FormatPicker({
       </Popover.Trigger>
 
       <Popover.Portal>
-        <Popover.Positioner side="bottom" align="start" sideOffset={4}>
+        <Popover.Positioner
+          side="bottom"
+          align="start"
+          sideOffset={4}
+          collisionPadding={8}
+          collisionAvoidance={{ side: 'flip', align: 'shift', fallbackAxisSide: 'none' }}
+        >
           <Popover.Popup
-            className="z-50 w-72 rounded-xl border border-border bg-popover p-3 shadow-lg ring-1 ring-foreground/10 outline-none"
+            className="z-50 w-72 rounded-xl border border-border bg-popover px-3 py-4 shadow-lg outline-none"
           >
             <div className="relative mb-3">
               <Search className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -68,17 +74,14 @@ export function FormatPicker({
               />
             </div>
 
-            <div className="grid max-h-52 grid-cols-4 gap-2 overflow-y-auto">
+            <div className="grid max-h-40 grid-cols-4 gap-2 overflow-y-auto py-1 pr-3 [&::-webkit-scrollbar]:w-1.5">
               {filtered.map((o) => (
                 <Button
                   key={o.value}
                   type="button"
                   variant={o.value === value ? 'default' : 'secondary'}
                   onClick={() => select(o.value)}
-                  className={cn(
-                    'h-9 w-full px-2 text-xs font-medium transition-all',
-                    o.value === value && 'ring-2 ring-ring ring-offset-1 ring-offset-background'
-                  )}
+                  className="h-9 w-full px-2 text-xs font-medium transition-all focus-visible:ring-0"
                 >
                   {o.label}
                 </Button>
