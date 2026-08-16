@@ -3,7 +3,6 @@ export type ImageFormat = 'image/png' | 'image/jpeg' | 'image/webp'
 export interface ImageOptions {
   format: ImageFormat
   quality: number
-  maxWidth?: number
 }
 
 function getExtension(format: ImageFormat): string {
@@ -25,12 +24,7 @@ export async function convertImage(
 ): Promise<Blob> {
   const bitmap = await createImageBitmap(file)
 
-  let { width, height } = bitmap
-  if (options.maxWidth && width > options.maxWidth) {
-    const ratio = options.maxWidth / width
-    width = options.maxWidth
-    height = Math.round(height * ratio)
-  }
+  const { width, height } = bitmap
 
   const canvas = document.createElement('canvas')
   canvas.width = width
@@ -38,7 +32,7 @@ export async function convertImage(
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error('Could not create canvas context')
 
-  ctx.drawImage(bitmap, 0, 0, width, height)
+  ctx.drawImage(bitmap, 0, 0)
   bitmap.close()
 
   const mime = options.format

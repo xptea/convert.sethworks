@@ -3,12 +3,13 @@ import JSZip from 'jszip'
 import { convertImage, makeImageFilename, type ImageFormat } from '@/converters/image'
 import { convertVideo, makeVideoFilename, type VideoFormat } from '@/converters/video'
 import { downloadBlob } from '@/lib/download'
+import { IMAGE_OUTPUTS, VIDEO_OUTPUTS, getImageFormatLabel, getVideoFormatLabel } from '@/lib/formats'
 import { FileDropzone } from './FileDropzone'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Progress } from '@/components/ui/progress'
-import { Image, Video, X, Download, Play, RotateCcw, FileArchive } from 'lucide-react'
+import { Image, Video, X, Download, Play, RotateCcw, FileArchive, Settings2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type FileType = 'image' | 'video'
@@ -26,32 +27,18 @@ interface QueueItem {
   error?: string
 }
 
-const IMAGE_FORMATS: { value: ImageFormat; label: string }[] = [
-  { value: 'image/png', label: 'PNG' },
-  { value: 'image/jpeg', label: 'JPEG' },
-  { value: 'image/webp', label: 'WebP' },
-]
-
-const VIDEO_FORMATS: { value: VideoFormat; label: string }[] = [
-  { value: 'mp4', label: 'MP4' },
-  { value: 'webm', label: 'WebM' },
-]
-
 function detectType(file: File): FileType {
   if (file.type.startsWith('image/')) return 'image'
   if (file.type.startsWith('video/')) return 'video'
   const ext = file.name.split('.').pop()?.toLowerCase()
-  if (['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'svg'].includes(ext || '')) return 'image'
-  if (['mp4', 'mov', 'webm', 'avi', 'mkv', 'm4v'].includes(ext || '')) return 'video'
+  if (['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'svg', 'tiff', 'tif', 'ico'].includes(ext || '')) return 'image'
+  if (['mp4', 'mov', 'webm', 'avi', 'mkv', 'flv', 'ogv', '3gp', 'm4v', 'mpeg', 'mpg', 'asf', 'wmv', 'ts'].includes(ext || '')) return 'video'
   return 'image'
 }
 
 function defaultFormat(file: File): ImageFormat | VideoFormat {
   const type = detectType(file)
-  if (type === 'video') {
-    const ext = file.name.split('.').pop()?.toLowerCase()
-    return ext === 'webm' ? 'mp4' : 'mp4'
-  }
+  if (type === 'video') return 'mp4'
   return 'image/jpeg'
 }
 
@@ -63,9 +50,20 @@ function itemFileName(item: QueueItem): string {
   return makeVideoFilename(item.file, item.format as VideoFormat)
 }
 
+function formatBytes(bytes: number) {
+  if (bytes === 0) return '0 B'
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(1024))
+  return `${(bytes / Math.pow(1024, i)).toFixed(i === 0 ? 0 : 2)} ${sizes[i]}`
+}
+
+const videoGroups = {
+  'Video containers': VIDEO_OUTPUTS.filter((o) => o.mime.startsWith('video/')),
+  'Audio only': VIDEO_OUTPUTS.filter((o) => o.mime.startsWith('audio/')),
+}
+
 export function ConverterQueue() {
   const [items, setItems] = useState<QueueItem[]>([])
-  const [convertingAll, setConvertingAll] = useState(false)
 
   const addFiles = useCallback((files: File[]) => {
     const newItems: QueueItem[] = files.map((file) => ({
@@ -86,11 +84,21 @@ export function ConverterQueue() {
   const setFormat = useCallback(
     (id: string, format: ImageFormat | VideoFormat) => {
       setItems((prev) =>
-        prev.map((i) => (i.id === id ? { ...i, format, status: 'pending', outputBlob: undefined, error: undefined } : i))
+        prev.map((i) =>
+          i.id === id ? { ...i, format, status: 'pending', outputBlob: undefined, error: undefined } : i
+        )
       )
     },
     []
   )
+
+  const setAllFormats = useCallback((type: FileType, format: ImageFormat | VideoFormat) => {
+    setItems((prev) =>
+      prev.map((i) =>
+        i.type === type ? { ...i, format, status: 'pending', outputBlob: undefined, error: undefined } : i
+      )
+    )
+  }, [])
 
   const updateItem = useCallback(
     (id: string, updates: Partial<QueueItem>) => {
@@ -111,7 +119,6 @@ export function ConverterQueue() {
           const blob = await convertImage(item.file, {
             format: item.format as ImageFormat,
             quality: 0.85,
-            maxWidth: 1920,
           })
           updateItem(id, { status: 'done', progress: 1, outputBlob: blob })
         } else {
@@ -136,11 +143,9 @@ export function ConverterQueue() {
   const convertAll = useCallback(async () => {
     const pending = items.filter((i) => i.status === 'pending')
     if (pending.length === 0) return
-    setConvertingAll(true)
     for (const item of pending) {
       await convertOne(item.id)
     }
-    setConvertingAll(false)
   }, [items, convertOne])
 
   const downloadOne = useCallback((item: QueueItem) => {
@@ -170,6 +175,8 @@ export function ConverterQueue() {
   const hasConverting = items.some((i) => i.status === 'converting')
   const hasDone = items.some((i) => i.status === 'done' && i.outputBlob)
   const hasPending = items.some((i) => i.status === 'pending')
+  const hasImages = items.some((i) => i.type === 'image')
+  const hasVideos = items.some((i) => i.type === 'video')
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-8">
@@ -177,82 +184,139 @@ export function ConverterQueue() {
 
       {items.length > 0 && (
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="space-y-4 p-4">
+            {(hasImages || hasVideos) && (
+              <div className="flex flex-wrap items-center gap-3 border-b pb-4">
+                <Settings2 className="size-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">Set all:</span>
+                {hasImages && (
+                  <Select onValueChange={(v) => setAllFormats('image', v as ImageFormat)}>
+                    <SelectTrigger size="sm" className="w-36">
+                      <SelectValue placeholder="Image format" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {IMAGE_OUTPUTS.map((o) => (
+                        <SelectItem key={o.value} value={o.value}>
+                          {o.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                {hasVideos && (
+                  <Select onValueChange={(v) => setAllFormats('video', v as VideoFormat)}>
+                    <SelectTrigger size="sm" className="w-44">
+                      <SelectValue placeholder="Video format" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(videoGroups).map(([group, options]) => (
+                        <SelectGroup key={group}>
+                          <SelectLabel>{group}</SelectLabel>
+                          {options.map((o) => (
+                            <SelectItem key={o.value} value={o.value}>
+                              {o.label}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            )}
+
             <div className="space-y-3">
               {items.map((item) => {
-                const options = item.type === 'image' ? IMAGE_FORMATS : VIDEO_FORMATS
+                const isImage = item.type === 'image'
+                const formatLabel = isImage
+                  ? getImageFormatLabel(item.format as ImageFormat)
+                  : getVideoFormatLabel(item.format)
+
                 return (
                   <div
                     key={item.id}
                     className={cn(
-                      'flex flex-col gap-3 rounded-xl border p-4 transition-colors sm:flex-row sm:items-center sm:justify-between',
+                      'flex flex-col gap-3 rounded-xl border p-4 transition-colors',
                       item.status === 'converting' ? 'border-primary/40 bg-primary/5' : 'border-border bg-card'
                     )}
                   >
-                    <div className="flex min-w-0 items-center gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                        {item.type === 'image' ? <Image className="size-5" /> : <Video className="size-5" />}
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                          {isImage ? <Image className="size-5" /> : <Video className="size-5" />}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-foreground" title={item.file.name}>
+                            {item.file.name}{' '}
+                            <span className="text-xs text-muted-foreground">({formatBytes(item.file.size)})</span>
+                          </p>
+                        </div>
                       </div>
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium text-foreground" title={item.file.name}>
-                          {item.file.name}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {(item.file.size / 1024 / 1024).toFixed(2)} MB
-                        </p>
-                      </div>
-                    </div>
 
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-                      <Select
-                        value={item.format}
-                        onValueChange={(v) => setFormat(item.id, v as ImageFormat | VideoFormat)}
-                        disabled={item.status === 'converting'}
-                      >
-                        <SelectTrigger className="w-32">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {options.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-
-                      <div className="flex items-center gap-2">
-                        {item.status === 'done' ? (
-                          <Button size="sm" variant="outline" onClick={() => downloadOne(item)}>
-                            <Download className="mr-1.5 size-4" />
-                            Download
-                          </Button>
-                        ) : item.status === 'converting' ? (
-                          <Button size="sm" disabled>
-                            <RotateCcw className="mr-1.5 size-4 animate-spin" />
-                            Converting
-                          </Button>
-                        ) : (
-                          <Button size="sm" onClick={() => convertOne(item.id)} disabled={hasConverting}>
-                            <Play className="mr-1.5 size-4" />
-                            Convert
-                          </Button>
-                        )}
-
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => removeItem(item.id)}
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+                        <Select
+                          value={item.format}
+                          onValueChange={(v) => setFormat(item.id, v as ImageFormat | VideoFormat)}
                           disabled={item.status === 'converting'}
-                          className="text-muted-foreground hover:text-destructive"
                         >
-                          <X className="size-4" />
-                        </Button>
+                          <SelectTrigger className="w-44">
+                            <SelectValue>{formatLabel}</SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            {isImage ? (
+                              IMAGE_OUTPUTS.map((o) => (
+                                <SelectItem key={o.value} value={o.value}>
+                                  {o.label}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              Object.entries(videoGroups).map(([group, options]) => (
+                                <SelectGroup key={group}>
+                                  <SelectLabel>{group}</SelectLabel>
+                                  {options.map((o) => (
+                                    <SelectItem key={o.value} value={o.value}>
+                                      {o.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectGroup>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
+
+                        <div className="flex items-center gap-2">
+                          {item.status === 'done' ? (
+                            <Button size="sm" variant="outline" onClick={() => downloadOne(item)}>
+                              <Download className="mr-1.5 size-4" />
+                              Download
+                            </Button>
+                          ) : item.status === 'converting' ? (
+                            <Button size="sm" disabled>
+                              <RotateCcw className="mr-1.5 size-4 animate-spin" />
+                              Converting
+                            </Button>
+                          ) : (
+                            <Button size="sm" onClick={() => convertOne(item.id)} disabled={hasConverting}>
+                              <Play className="mr-1.5 size-4" />
+                              Convert
+                            </Button>
+                          )}
+
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => removeItem(item.id)}
+                            disabled={item.status === 'converting'}
+                            className="text-muted-foreground hover:text-destructive"
+                          >
+                            <X className="size-4" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
 
                     {item.status === 'converting' && (
-                      <div className="w-full sm:col-span-2">
+                      <div className="w-full">
                         <Progress value={Math.round(item.progress * 100)} />
                         <p className="mt-1 text-right text-xs text-muted-foreground">
                           {Math.round(item.progress * 100)}%
@@ -261,19 +325,19 @@ export function ConverterQueue() {
                     )}
 
                     {item.status === 'error' && item.error && (
-                      <p className="w-full text-sm text-destructive sm:col-span-2">{item.error}</p>
+                      <p className="w-full text-sm text-destructive">{item.error}</p>
                     )}
                   </div>
                 )
               })}
             </div>
 
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
               <p className="text-sm text-muted-foreground">
                 {items.length} file{items.length === 1 ? '' : 's'} added
               </p>
               <div className="flex items-center gap-2">
-                <Button onClick={convertAll} disabled={!hasPending || hasConverting || convertingAll}>
+                <Button onClick={convertAll} disabled={!hasPending || hasConverting}>
                   <Play className="mr-1.5 size-4" />
                   Convert all
                 </Button>

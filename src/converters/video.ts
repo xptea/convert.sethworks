@@ -1,6 +1,7 @@
 import type { FFmpeg as FFmpegType } from '@ffmpeg/ffmpeg'
+import { findVideoDef, getVideoFormatExt, getVideoFormatMime, type VideoFormat } from '@/lib/formats'
 
-export type VideoFormat = 'mp4' | 'webm'
+export type { VideoFormat }
 
 export interface VideoOptions {
   format: VideoFormat
@@ -31,7 +32,6 @@ export async function initFFmpeg(
 ): Promise<void> {
   if (loaded && ffmpeg) return
   if (loading) {
-    // Wait until another caller finishes loading.
     while (loading) {
       await new Promise((r) => setTimeout(r, 50))
     }
@@ -75,7 +75,6 @@ export function isFFmpegLoaded(): boolean {
 }
 
 function getSafeName(name: string): string {
-  // Keep ASCII to avoid FS issues.
   return name.replace(/[^a-zA-Z0-9._-]/g, '_')
 }
 
@@ -87,9 +86,13 @@ export async function convertVideo(
   await initFFmpeg()
   if (!ffmpeg) throw new Error('FFmpeg failed to load')
 
+  const profile = findVideoDef(options.format)
+  if (!profile) throw new Error(`Unsupported video format: ${options.format}`)
+
   const { fetchFile } = await import('@ffmpeg/util')
   const inputName = `input.${getSafeName(file.name).split('.').pop() || 'mp4'}`
-  const outputName = `output.${options.format}`
+  const ext = getVideoFormatExt(options.format)
+  const outputName = `output.${ext}`
 
   ffmpeg.off('progress', () => {})
   const progressHandler = ({ progress }: { progress: number; time: number }) => {
@@ -100,41 +103,7 @@ export async function convertVideo(
   try {
     await ffmpeg.writeFile(inputName, await fetchFile(file))
 
-    const crf = Math.max(18, 35 - (options.quality - 1) * 4)
-    const args = ['-i', inputName, '-y']
-
-    if (options.format === 'mp4') {
-      args.push(
-        '-c:v',
-        'libx264',
-        '-crf',
-        String(crf),
-        '-preset',
-        'fast',
-        '-c:a',
-        'aac',
-        '-movflags',
-        '+faststart',
-        outputName
-      )
-    } else {
-      // webm — use VP9 for quality but with reasonable single-thread settings.
-      args.push(
-        '-c:v',
-        'libvpx-vp9',
-        '-crf',
-        String(Math.min(63, crf + 10)),
-        '-b:v',
-        '0',
-        '-cpu-used',
-        '4',
-        '-row-mt',
-        '1',
-        '-c:a',
-        'libopus',
-        outputName
-      )
-    }
+    const args = ['-i', inputName, '-y', ...profile.args(options.quality), outputName]
 
     const exitCode = await ffmpeg.exec(args)
     if (exitCode !== 0) {
@@ -142,11 +111,10 @@ export async function convertVideo(
     }
 
     const data = await ffmpeg.readFile(outputName)
-    const mime = options.format === 'mp4' ? 'video/mp4' : 'video/webm'
+    const mime = getVideoFormatMime(options.format)
     const buffer = (data as Uint8Array).buffer as ArrayBuffer
     const blob = new Blob([buffer], { type: mime })
 
-    // Clean up virtual FS.
     try {
       await ffmpeg.deleteFile(inputName)
       await ffmpeg.deleteFile(outputName)
@@ -162,5 +130,6 @@ export async function convertVideo(
 
 export function makeVideoFilename(file: File, format: VideoFormat): string {
   const base = file.name.replace(/\.[^.]+$/, '')
-  return `${base}-converted.${format}`
+  const ext = getVideoFormatExt(format)
+  return `${base}-converted.${ext}`
 }

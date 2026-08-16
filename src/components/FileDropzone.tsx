@@ -85,7 +85,7 @@ export function FileDropzone({ onFiles }: FileDropzoneProps) {
           Drop files here or click to browse
         </p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Images (PNG, JPG, WebP, GIF, BMP) and videos (MP4, MOV, WebM, AVI)
+          Images (PNG, JPG, WebP, GIF, BMP, TIFF, SVG, ICO) and videos (MP4, MOV, WebM, AVI, MKV, FLV, OGV, 3GP, M4V, MPEG, ASF, WMV, TS, and more)
         </p>
       </div>
 
