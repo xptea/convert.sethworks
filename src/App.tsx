@@ -2,8 +2,8 @@ import { ConverterQueue } from '@/components/ConverterQueue'
 
 function App() {
   return (
-    <div className="min-h-screen bg-background px-4 py-12">
-      <div className="mx-auto max-w-3xl space-y-8 text-center">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
+      <div className="w-full max-w-3xl space-y-8 text-center">
         <div className="space-y-2">
           <h1 className="text-4xl font-semibold tracking-tight text-foreground">
             convert.sethworks
