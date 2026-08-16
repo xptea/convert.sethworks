@@ -5,7 +5,12 @@ export type { VideoFormat }
 
 export interface VideoOptions {
   format: VideoFormat
-  quality: number // 1 = small file/high compression, 5 = large file/low compression
+  quality: number // 0..1, where 0 = small file/high compression, 1 = large file/low compression
+}
+
+function qualityToLevel(quality: number): number {
+  // 0..1 → 1..5
+  return Math.max(1, Math.min(5, Math.round(quality * 4 + 1)))
 }
 
 function getSafeName(name: string): string {
@@ -36,7 +41,7 @@ export async function convertVideo(
   try {
     await ffmpeg.writeFile(inputName, await fetchFile(file))
 
-    const args = ['-i', inputName, '-y', ...profile.args(options.quality), outputName]
+    const args = ['-i', inputName, '-y', ...profile.args(qualityToLevel(options.quality)), outputName]
 
     const exitCode = await ffmpeg.exec(args)
     if (exitCode !== 0) {
