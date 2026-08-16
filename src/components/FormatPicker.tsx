@@ -44,7 +44,7 @@ export function FormatPicker({
       <Popover.Trigger
         disabled={disabled}
         className={cn(
-          'flex w-full items-center justify-between gap-2 rounded-lg border border-input bg-background px-3 py-2 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50',
+          'flex items-center justify-between gap-2 rounded-lg border border-input bg-background px-3 py-2 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50',
           triggerClassName
         )}
       >
@@ -55,7 +55,7 @@ export function FormatPicker({
       <Popover.Portal>
         <Popover.Positioner side="bottom" align="start" sideOffset={4}>
           <Popover.Popup
-            className="z-50 w-80 rounded-xl border border-border bg-popover p-3 shadow-lg ring-1 ring-foreground/10 outline-none"
+            className="z-50 w-72 rounded-xl border border-border bg-popover p-3 shadow-lg ring-1 ring-foreground/10 outline-none"
           >
             <div className="relative mb-3">
               <Search className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -68,7 +68,7 @@ export function FormatPicker({
               />
             </div>
 
-            <div className="grid max-h-60 grid-cols-3 gap-2 overflow-y-auto sm:grid-cols-4">
+            <div className="grid max-h-52 grid-cols-4 gap-2 overflow-y-auto">
               {filtered.map((o) => (
                 <Button
                   key={o.value}
@@ -76,7 +76,7 @@ export function FormatPicker({
                   variant={o.value === value ? 'default' : 'secondary'}
                   onClick={() => select(o.value)}
                   className={cn(
-                    'h-10 w-full text-sm font-medium transition-all',
+                    'h-9 w-full px-2 text-xs font-medium transition-all',
                     o.value === value && 'ring-2 ring-ring ring-offset-1 ring-offset-background'
                   )}
                 >

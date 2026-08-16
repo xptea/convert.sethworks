@@ -285,12 +285,13 @@ export function ConverterQueue() {
                         </div>
                       </div>
 
-                      <div className="flex flex-col gap-3 sm:w-72">
+                      <div className="flex shrink-0 flex-row flex-wrap items-center gap-2">
                         <FormatPicker
                           value={item.format}
                           options={formatOptions}
                           onChange={(v) => setFormat(item.id, v as ImageFormat | VideoFormat)}
                           disabled={item.status === 'converting'}
+                          triggerClassName="w-40"
                         />
 
                         <div className="flex items-center gap-2">
