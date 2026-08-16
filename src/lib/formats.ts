@@ -61,6 +61,8 @@ export interface VideoOutputDef {
   mime: string
   /** FFmpeg args placed between input and output name. */
   args: (quality: number) => string[]
+  /** Whether this output can be produced by copying input streams (same-codec remux). */
+  copyable?: boolean
 }
 
 function x264Aac(quality: number) {
@@ -68,7 +70,7 @@ function x264Aac(quality: number) {
   return [
     '-c:v', 'libx264',
     '-crf', String(crf),
-    '-preset', 'fast',
+    '-preset', 'veryfast',
     '-c:a', 'aac',
     '-movflags', '+faststart',
   ]
@@ -108,17 +110,17 @@ function theoraVorbis(_quality: number) {
 }
 
 export const VIDEO_OUTPUTS: VideoOutputDef[] = [
-  { value: 'mp4', label: 'MP4 (H.264)', ext: 'mp4', mime: 'video/mp4', args: x264Aac },
+  { value: 'mp4', label: 'MP4 (H.264)', ext: 'mp4', mime: 'video/mp4', args: x264Aac, copyable: true },
   { value: 'mp4-h265', label: 'MP4 (H.265)', ext: 'mp4', mime: 'video/mp4', args: x265Aac },
-  { value: 'mov', label: 'MOV', ext: 'mov', mime: 'video/quicktime', args: x264Aac },
-  { value: 'm4v', label: 'M4V', ext: 'm4v', mime: 'video/x-m4v', args: x264Aac },
-  { value: 'mkv', label: 'MKV', ext: 'mkv', mime: 'video/x-matroska', args: x264Aac },
-  { value: 'avi', label: 'AVI', ext: 'avi', mime: 'video/x-msvideo', args: x264Aac },
+  { value: 'mov', label: 'MOV', ext: 'mov', mime: 'video/quicktime', args: x264Aac, copyable: true },
+  { value: 'm4v', label: 'M4V', ext: 'm4v', mime: 'video/x-m4v', args: x264Aac, copyable: true },
+  { value: 'mkv', label: 'MKV', ext: 'mkv', mime: 'video/x-matroska', args: x264Aac, copyable: true },
+  { value: 'avi', label: 'AVI', ext: 'avi', mime: 'video/x-msvideo', args: x264Aac, copyable: true },
   { value: 'webm', label: 'WebM (VP9)', ext: 'webm', mime: 'video/webm', args: vp9Opus },
   { value: 'webm-vp8', label: 'WebM (VP8)', ext: 'webm', mime: 'video/webm', args: vp8Vorbis },
-  { value: 'flv', label: 'FLV', ext: 'flv', mime: 'video/x-flv', args: x264Aac },
+  { value: 'flv', label: 'FLV', ext: 'flv', mime: 'video/x-flv', args: x264Aac, copyable: true },
   { value: 'ogv', label: 'OGV (Theora)', ext: 'ogv', mime: 'video/ogg', args: theoraVorbis },
-  { value: '3gp', label: '3GP', ext: '3gp', mime: 'video/3gpp', args: x264Aac },
+  { value: '3gp', label: '3GP', ext: '3gp', mime: 'video/3gpp', args: x264Aac, copyable: true },
   { value: 'mpeg', label: 'MPEG-1', ext: 'mpeg', mime: 'video/mpeg', args: (q) => ['-c:v', 'mpeg1video', '-qscale:v', String(Math.max(2, 6 - q)), '-c:a', 'mp2'] },
   { value: 'mpeg2', label: 'MPEG-2', ext: 'mpg', mime: 'video/mpeg', args: (q) => ['-c:v', 'mpeg2video', '-qscale:v', String(Math.max(2, 6 - q)), '-c:a', 'mp2'] },
   { value: 'asf', label: 'ASF (WMV)', ext: 'asf', mime: 'video/x-ms-asf', args: () => ['-c:v', 'wmv2', '-c:a', 'wmav2'] },

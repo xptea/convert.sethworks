@@ -41,6 +41,29 @@ export async function convertVideo(
   try {
     await ffmpeg.writeFile(inputName, await fetchFile(file))
 
+    // Fast path: same-codec remuxing for compatible containers (e.g. MP4 → MOV).
+    if (profile.copyable) {
+      const copyArgs = ['-i', inputName, '-c', 'copy', '-movflags', '+faststart', '-y', outputName]
+      const copyCode = await ffmpeg.exec(copyArgs)
+      if (copyCode === 0) {
+        const data = await ffmpeg.readFile(outputName)
+        const mime = getVideoFormatMime(options.format)
+        const buffer = (data as Uint8Array).buffer as ArrayBuffer
+        const blob = new Blob([buffer], { type: mime })
+
+        try {
+          await ffmpeg.deleteFile(inputName)
+          await ffmpeg.deleteFile(outputName)
+        } catch {
+          // ignore cleanup errors
+        }
+
+        onProgress?.(1)
+        return blob
+      }
+      // Copy failed (incompatible codec), fall through to re-encode.
+    }
+
     const args = ['-i', inputName, '-y', ...profile.args(qualityToLevel(options.quality)), outputName]
 
     const exitCode = await ffmpeg.exec(args)

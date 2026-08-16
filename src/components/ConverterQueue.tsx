@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
 import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
-import { Image, Video, Music, X, Download, Play, RotateCcw, FileArchive, ArrowRight, Settings2 } from 'lucide-react'
+import { Image, Video, Music, X, Download, Play, Loader2, FileArchive, ArrowRight, Settings2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type FileType = 'image' | 'video' | 'audio'
@@ -345,7 +345,7 @@ export function ConverterQueue() {
                             </Button>
                           ) : item.status === 'converting' ? (
                             <Button size="sm" disabled>
-                              <RotateCcw className="mr-1.5 size-4 animate-spin" />
+                              <Loader2 className="mr-1.5 size-4 animate-spin" />
                               Converting
                             </Button>
                           ) : (
