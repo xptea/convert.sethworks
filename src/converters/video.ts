@@ -1,77 +1,11 @@
-import type { FFmpeg as FFmpegType } from '@ffmpeg/ffmpeg'
 import { findVideoDef, getVideoFormatExt, getVideoFormatMime, type VideoFormat } from '@/lib/formats'
+import { initFFmpeg } from './ffmpeg'
 
 export type { VideoFormat }
 
 export interface VideoOptions {
   format: VideoFormat
   quality: number // 1 = small file/high compression, 5 = large file/low compression
-}
-
-const CORE_PATH = '/ffmpeg/ffmpeg-core.js'
-const WASM_PATH = '/ffmpeg/ffmpeg-core.wasm'
-
-let ffmpeg: FFmpegType | null = null
-let loading = false
-let loaded = false
-
-function reportProgress(
-  onProgress: ((p: number) => void) | undefined,
-  start: number,
-  size: number
-) {
-  return ({ received, total }: { received: number; total: number }) => {
-    const totalBytes = total > 0 ? total : received || 1
-    const ratio = Math.min(1, received / totalBytes)
-    onProgress?.(start + ratio * size)
-  }
-}
-
-export async function initFFmpeg(
-  onProgress?: (p: number) => void
-): Promise<void> {
-  if (loaded && ffmpeg) return
-  if (loading) {
-    while (loading) {
-      await new Promise((r) => setTimeout(r, 50))
-    }
-    if (loaded && ffmpeg) return
-  }
-
-  loading = true
-  try {
-    const [{ FFmpeg }, { toBlobURL }] = await Promise.all([
-      import('@ffmpeg/ffmpeg'),
-      import('@ffmpeg/util'),
-    ])
-
-    ffmpeg = new FFmpeg()
-    const base = location.origin
-
-    const coreURL = await toBlobURL(
-      `${base}${CORE_PATH}`,
-      'text/javascript',
-      true,
-      reportProgress(onProgress, 0, 0.15)
-    )
-    const wasmURL = await toBlobURL(
-      `${base}${WASM_PATH}`,
-      'application/wasm',
-      true,
-      reportProgress(onProgress, 0.15, 0.7)
-    )
-
-    onProgress?.(0.85)
-    await ffmpeg.load({ coreURL, wasmURL })
-    loaded = true
-    onProgress?.(1)
-  } finally {
-    loading = false
-  }
-}
-
-export function isFFmpegLoaded(): boolean {
-  return loaded
 }
 
 function getSafeName(name: string): string {
@@ -83,8 +17,7 @@ export async function convertVideo(
   options: VideoOptions,
   onProgress?: (p: number) => void
 ): Promise<Blob> {
-  await initFFmpeg()
-  if (!ffmpeg) throw new Error('FFmpeg failed to load')
+  const ffmpeg = await initFFmpeg()
 
   const profile = findVideoDef(options.format)
   if (!profile) throw new Error(`Unsupported video format: ${options.format}`)

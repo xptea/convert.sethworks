@@ -1,15 +1,23 @@
-export type ImageFormat = 'image/png' | 'image/jpeg' | 'image/webp'
+export type ImageFormat = 'png' | 'jpg' | 'webp' | 'bmp' | 'gif' | 'tiff' | 'tga' | 'ico'
 
 export interface ImageOutputDef {
   value: ImageFormat
   label: string
   ext: string
+  mime: string
+  /** 'canvas' for fast browser encode, 'ffmpeg' for everything else. */
+  engine: 'canvas' | 'ffmpeg'
 }
 
 export const IMAGE_OUTPUTS: ImageOutputDef[] = [
-  { value: 'image/png', label: 'PNG', ext: 'png' },
-  { value: 'image/jpeg', label: 'JPEG', ext: 'jpg' },
-  { value: 'image/webp', label: 'WebP', ext: 'webp' },
+  { value: 'png', label: 'PNG', ext: 'png', mime: 'image/png', engine: 'canvas' },
+  { value: 'jpg', label: 'JPEG', ext: 'jpg', mime: 'image/jpeg', engine: 'canvas' },
+  { value: 'webp', label: 'WebP', ext: 'webp', mime: 'image/webp', engine: 'canvas' },
+  { value: 'bmp', label: 'BMP', ext: 'bmp', mime: 'image/bmp', engine: 'ffmpeg' },
+  { value: 'gif', label: 'GIF', ext: 'gif', mime: 'image/gif', engine: 'ffmpeg' },
+  { value: 'tiff', label: 'TIFF', ext: 'tiff', mime: 'image/tiff', engine: 'ffmpeg' },
+  { value: 'tga', label: 'TGA', ext: 'tga', mime: 'image/x-targa', engine: 'ffmpeg' },
+  { value: 'ico', label: 'ICO', ext: 'ico', mime: 'image/x-icon', engine: 'ffmpeg' },
 ]
 
 export type VideoFormat = string
@@ -109,8 +117,16 @@ export function getVideoFormatLabel(value: string) {
   return findVideoDef(value)?.label ?? value
 }
 
+export function getImageFormatMime(value: ImageFormat) {
+  return findImageDef(value)?.mime ?? 'application/octet-stream'
+}
+
 export function getVideoFormatMime(value: string) {
   return findVideoDef(value)?.mime ?? 'application/octet-stream'
+}
+
+export function getImageFormatExt(value: ImageFormat) {
+  return findImageDef(value)?.ext ?? value
 }
 
 export function getVideoFormatExt(value: string) {

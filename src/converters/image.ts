@@ -1,31 +1,19 @@
-export type ImageFormat = 'image/png' | 'image/jpeg' | 'image/webp'
+import { findImageDef, getImageFormatExt, type ImageFormat } from '@/lib/formats'
+import { initFFmpeg } from './ffmpeg'
+
+export type { ImageFormat }
 
 export interface ImageOptions {
   format: ImageFormat
   quality: number
 }
 
-function getExtension(format: ImageFormat): string {
-  switch (format) {
-    case 'image/png':
-      return 'png'
-    case 'image/jpeg':
-      return 'jpg'
-    case 'image/webp':
-      return 'webp'
-  }
-}
-
 export { downloadBlob } from '@/lib/download'
 
-export async function convertImage(
-  file: File,
-  options: ImageOptions
-): Promise<Blob> {
+async function convertImageCanvas(file: File, options: ImageOptions): Promise<Blob> {
   const bitmap = await createImageBitmap(file)
 
   const { width, height } = bitmap
-
   const canvas = document.createElement('canvas')
   canvas.width = width
   canvas.height = height
@@ -35,9 +23,9 @@ export async function convertImage(
   ctx.drawImage(bitmap, 0, 0)
   bitmap.close()
 
-  const mime = options.format
-  const quality =
-    mime === 'image/png' ? undefined : Math.max(0.01, Math.min(1, options.quality))
+  const def = findImageDef(options.format)
+  const mime = def?.mime ?? `image/${options.format}`
+  const quality = mime === 'image/png' ? undefined : Math.max(0.01, Math.min(1, options.quality))
 
   return new Promise((resolve, reject) => {
     canvas.toBlob(
@@ -54,7 +42,66 @@ export async function convertImage(
   })
 }
 
+function getSafeName(name: string): string {
+  return name.replace(/[^a-zA-Z0-9._-]/g, '_')
+}
+
+async function convertImageFfmpeg(file: File, options: ImageOptions): Promise<Blob> {
+  const ffmpeg = await initFFmpeg()
+  const { fetchFile } = await import('@ffmpeg/util')
+
+  const def = findImageDef(options.format)
+  if (!def) throw new Error(`Unsupported image format: ${options.format}`)
+
+  const inputName = `input.${getSafeName(file.name).split('.').pop() || 'png'}`
+  const outputName = `output.${def.ext}`
+
+  await ffmpeg.writeFile(inputName, await fetchFile(file))
+
+  const quality = Math.max(0.01, Math.min(1, options.quality))
+  const qscale = Math.round(2 + (1 - quality) * 30) // 2-32 scale for still image codecs
+
+  const args = ['-i', inputName, '-y']
+
+  if (def.value === 'jpg') {
+    args.push('-qscale:v', String(qscale))
+  } else if (def.value === 'webp') {
+    args.push('-c:v', 'libwebp', '-q:v', String(Math.round(quality * 100)))
+  }
+
+  args.push(outputName)
+
+  const exitCode = await ffmpeg.exec(args)
+  if (exitCode !== 0) {
+    throw new Error(`FFmpeg exited with code ${exitCode}`)
+  }
+
+  const data = await ffmpeg.readFile(outputName)
+  const buffer = (data as Uint8Array).buffer as ArrayBuffer
+  const blob = new Blob([buffer], { type: def.mime })
+
+  try {
+    await ffmpeg.deleteFile(inputName)
+    await ffmpeg.deleteFile(outputName)
+  } catch {
+    // ignore cleanup errors
+  }
+
+  return blob
+}
+
+export async function convertImage(file: File, options: ImageOptions): Promise<Blob> {
+  const def = findImageDef(options.format)
+  if (!def) throw new Error(`Unsupported image format: ${options.format}`)
+
+  if (def.engine === 'canvas') {
+    return convertImageCanvas(file, options)
+  }
+  return convertImageFfmpeg(file, options)
+}
+
 export function makeImageFilename(file: File, format: ImageFormat): string {
   const base = file.name.replace(/\.[^.]+$/, '')
-  return `${base}-converted.${getExtension(format)}`
+  const ext = getImageFormatExt(format)
+  return `${base}-converted.${ext}`
 }

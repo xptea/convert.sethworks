@@ -3,8 +3,9 @@ import JSZip from 'jszip'
 import { convertImage, makeImageFilename, type ImageFormat } from '@/converters/image'
 import { convertVideo, makeVideoFilename, type VideoFormat } from '@/converters/video'
 import { downloadBlob } from '@/lib/download'
-import { IMAGE_OUTPUTS, VIDEO_OUTPUTS, getImageFormatLabel, getVideoFormatLabel } from '@/lib/formats'
+import { IMAGE_OUTPUTS, VIDEO_OUTPUTS } from '@/lib/formats'
 import { FileDropzone } from './FileDropzone'
+import { FormatPicker } from './FormatPicker'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -39,7 +40,7 @@ function detectType(file: File): FileType {
 function defaultFormat(file: File): ImageFormat | VideoFormat {
   const type = detectType(file)
   if (type === 'video') return 'mp4'
-  return 'image/jpeg'
+  return 'jpg'
 }
 
 function itemFileName(item: QueueItem): string {
@@ -228,9 +229,9 @@ export function ConverterQueue() {
             <div className="space-y-3">
               {items.map((item) => {
                 const isImage = item.type === 'image'
-                const formatLabel = isImage
-                  ? getImageFormatLabel(item.format as ImageFormat)
-                  : getVideoFormatLabel(item.format)
+                const formatOptions = isImage
+                  ? IMAGE_OUTPUTS.map((o) => ({ value: o.value, label: o.label }))
+                  : VIDEO_OUTPUTS.map((o) => ({ value: o.value, label: o.label }))
 
                 return (
                   <div
@@ -240,7 +241,7 @@ export function ConverterQueue() {
                       item.status === 'converting' ? 'border-primary/40 bg-primary/5' : 'border-border bg-card'
                     )}
                   >
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div className="flex min-w-0 items-center gap-3">
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
                           {isImage ? <Image className="size-5" /> : <Video className="size-5" />}
@@ -253,36 +254,13 @@ export function ConverterQueue() {
                         </div>
                       </div>
 
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-                        <Select
+                      <div className="flex flex-col gap-3 sm:w-72">
+                        <FormatPicker
                           value={item.format}
-                          onValueChange={(v) => setFormat(item.id, v as ImageFormat | VideoFormat)}
+                          options={formatOptions}
+                          onChange={(v) => setFormat(item.id, v as ImageFormat | VideoFormat)}
                           disabled={item.status === 'converting'}
-                        >
-                          <SelectTrigger className="w-44">
-                            <SelectValue>{formatLabel}</SelectValue>
-                          </SelectTrigger>
-                          <SelectContent>
-                            {isImage ? (
-                              IMAGE_OUTPUTS.map((o) => (
-                                <SelectItem key={o.value} value={o.value}>
-                                  {o.label}
-                                </SelectItem>
-                              ))
-                            ) : (
-                              Object.entries(videoGroups).map(([group, options]) => (
-                                <SelectGroup key={group}>
-                                  <SelectLabel>{group}</SelectLabel>
-                                  {options.map((o) => (
-                                    <SelectItem key={o.value} value={o.value}>
-                                      {o.label}
-                                    </SelectItem>
-                                  ))}
-                                </SelectGroup>
-                              ))
-                            )}
-                          </SelectContent>
-                        </Select>
+                        />
 
                         <div className="flex items-center gap-2">
                           {item.status === 'done' ? (
