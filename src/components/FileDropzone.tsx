@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, type DragEvent, type ChangeEvent } from 'react'
 import { cn } from '@/lib/utils'
-import { Image, Video, Upload } from 'lucide-react'
+import { Image, Video, Music, Upload } from 'lucide-react'
 
 interface FileDropzoneProps {
   onFiles: (files: File[]) => void
@@ -65,7 +65,7 @@ export function FileDropzone({ onFiles }: FileDropzoneProps) {
       <input
         ref={inputRef}
         type="file"
-        accept="image/*,video/*"
+        accept="image/*,video/*,audio/*,.3fr,.arw,.avif,.bmp,.cr2,.cr3,.crw,.dcr,.dng,.eps,.erf,.gif,.heic,.heif,.icns,.ico,.jfif,.jpeg,.jpg,.mos,.mrw,.nef,.odd,.odg,.orf,.pef,.png,.ppm,.ps,.psb,.psd,.pub,.raf,.raw,.rw2,.tga,.tif,.tiff,.webp,.x3f,.xcf,.xps,.3g2,.3gp,.3gpp,.avi,.cavs,.dv,.dvr,.flv,.m2ts,.m4v,.mkv,.mod,.mov,.mp4,.mpeg,.mpg,.mts,.mxf,.ogg,.ogv,.rm,.rmvb,.swf,.ts,.vob,.webm,.wmv,.wtv,.aac,.ac3,.aif,.aifc,.aiff,.amr,.au,.caf,.dss,.flac,.m4a,.m4b,.mp3,.oga,.opus,.sf2,.sfark,.voc,.wav,.weba,.wma"
         multiple
         className="hidden"
         onChange={onChange}
@@ -85,7 +85,7 @@ export function FileDropzone({ onFiles }: FileDropzoneProps) {
           Drop files here or click to browse
         </p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Images (PNG, JPG, WebP, GIF, BMP, TIFF, SVG, ICO) and videos (MP4, MOV, WebM, AVI, MKV, FLV, OGV, 3GP, M4V, MPEG, ASF, WMV, TS, and more)
+          Drop images, videos, and audio in 100+ formats — including RAW, HEIC, TIFF, MP4, MKV, MOV, MP3, FLAC, and more.
         </p>
       </div>
 
@@ -95,6 +95,9 @@ export function FileDropzone({ onFiles }: FileDropzoneProps) {
         </span>
         <span className="flex items-center gap-1.5">
           <Video className="size-4" /> Video
+        </span>
+        <span className="flex items-center gap-1.5">
+          <Music className="size-4" /> Audio
         </span>
       </div>
     </div>

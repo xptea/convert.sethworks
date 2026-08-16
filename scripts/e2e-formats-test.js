@@ -32,7 +32,7 @@ async function run() {
   // Open second format picker (video, currently MP4 (H.264)) and select MP3.
   const mp4Triggers = page.getByRole('button', { name: 'MP4 (H.264)' })
   await mp4Triggers.first().click()
-  await page.getByRole('button', { name: 'MP3 (audio)' }).click()
+  await page.getByRole('button', { name: 'MP3' }).click()
   console.log('Selected MP3 for video')
 
   // Convert all and wait for two Download buttons.

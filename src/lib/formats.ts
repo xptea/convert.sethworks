@@ -1,4 +1,24 @@
-export type ImageFormat = 'png' | 'jpg' | 'webp' | 'bmp' | 'gif' | 'tiff' | 'tga' | 'ico'
+export type ImageFormat =
+  | 'png'
+  | 'jpg'
+  | 'webp'
+  | 'bmp'
+  | 'gif'
+  | 'tiff'
+  | 'tga'
+  | 'ico'
+  | 'ppm'
+  | 'pgm'
+  | 'pbm'
+  | 'xpm'
+  | 'xbm'
+  | 'pam'
+  | 'pfm'
+  | 'sgi'
+  | 'sun'
+  | 'ras'
+  | 'iff'
+  | 'dpx'
 
 export interface ImageOutputDef {
   value: ImageFormat
@@ -18,6 +38,18 @@ export const IMAGE_OUTPUTS: ImageOutputDef[] = [
   { value: 'tiff', label: 'TIFF', ext: 'tiff', mime: 'image/tiff', engine: 'ffmpeg' },
   { value: 'tga', label: 'TGA', ext: 'tga', mime: 'image/x-targa', engine: 'ffmpeg' },
   { value: 'ico', label: 'ICO', ext: 'ico', mime: 'image/x-icon', engine: 'ffmpeg' },
+  { value: 'ppm', label: 'PPM', ext: 'ppm', mime: 'image/x-portable-pixmap', engine: 'ffmpeg' },
+  { value: 'pgm', label: 'PGM', ext: 'pgm', mime: 'image/x-portable-graymap', engine: 'ffmpeg' },
+  { value: 'pbm', label: 'PBM', ext: 'pbm', mime: 'image/x-portable-bitmap', engine: 'ffmpeg' },
+  { value: 'xpm', label: 'XPM', ext: 'xpm', mime: 'image/x-xpixmap', engine: 'ffmpeg' },
+  { value: 'xbm', label: 'XBM', ext: 'xbm', mime: 'image/x-xbitmap', engine: 'ffmpeg' },
+  { value: 'pam', label: 'PAM', ext: 'pam', mime: 'image/x-portable-arbitrarymap', engine: 'ffmpeg' },
+  { value: 'pfm', label: 'PFM', ext: 'pfm', mime: 'image/x-portable-floatmap', engine: 'ffmpeg' },
+  { value: 'sgi', label: 'SGI', ext: 'sgi', mime: 'image/sgi', engine: 'ffmpeg' },
+  { value: 'sun', label: 'SUN', ext: 'sun', mime: 'image/x-sun-raster', engine: 'ffmpeg' },
+  { value: 'ras', label: 'RAS', ext: 'ras', mime: 'image/x-sun-raster', engine: 'ffmpeg' },
+  { value: 'iff', label: 'IFF', ext: 'iff', mime: 'image/x-iff', engine: 'ffmpeg' },
+  { value: 'dpx', label: 'DPX', ext: 'dpx', mime: 'image/x-dpx', engine: 'ffmpeg' },
 ]
 
 export type VideoFormat = string
@@ -94,19 +126,36 @@ export const VIDEO_OUTPUTS: VideoOutputDef[] = [
     '-vf', 'fps=10,scale=480:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=128[p];[s1][p]paletteuse=dither=bayer',
     '-loop', '0',
   ]},
-  { value: 'mp3', label: 'MP3 (audio)', ext: 'mp3', mime: 'audio/mpeg', args: () => ['-vn', '-c:a', 'libmp3lame', '-q:a', '2'] },
-  { value: 'wav', label: 'WAV (audio)', ext: 'wav', mime: 'audio/wav', args: () => ['-vn', '-c:a', 'pcm_s16le'] },
-  { value: 'ogg', label: 'OGG Vorbis (audio)', ext: 'ogg', mime: 'audio/ogg', args: () => ['-vn', '-c:a', 'libvorbis', '-q:a', '4'] },
-  { value: 'opus', label: 'Opus (audio)', ext: 'opus', mime: 'audio/opus', args: () => ['-vn', '-c:a', 'libopus', '-b:a', '128k'] },
-  { value: 'flac', label: 'FLAC (audio)', ext: 'flac', mime: 'audio/flac', args: () => ['-vn', '-c:a', 'flac'] },
 ]
+
+export const AUDIO_OUTPUTS: VideoOutputDef[] = [
+  { value: 'mp3', label: 'MP3', ext: 'mp3', mime: 'audio/mpeg', args: () => ['-vn', '-c:a', 'libmp3lame', '-q:a', '2'] },
+  { value: 'wav', label: 'WAV', ext: 'wav', mime: 'audio/wav', args: () => ['-vn', '-c:a', 'pcm_s16le'] },
+  { value: 'flac', label: 'FLAC', ext: 'flac', mime: 'audio/flac', args: () => ['-vn', '-c:a', 'flac'] },
+  { value: 'ogg', label: 'OGG Vorbis', ext: 'ogg', mime: 'audio/ogg', args: () => ['-vn', '-c:a', 'libvorbis', '-q:a', '4'] },
+  { value: 'opus', label: 'Opus', ext: 'opus', mime: 'audio/opus', args: () => ['-vn', '-c:a', 'libopus', '-b:a', '128k'] },
+  { value: 'aac', label: 'AAC', ext: 'aac', mime: 'audio/aac', args: () => ['-vn', '-c:a', 'aac'] },
+  { value: 'ac3', label: 'AC3', ext: 'ac3', mime: 'audio/ac3', args: () => ['-vn', '-c:a', 'ac3'] },
+  { value: 'aiff', label: 'AIFF', ext: 'aiff', mime: 'audio/aiff', args: () => ['-vn', '-c:a', 'pcm_s16be'] },
+  { value: 'aifc', label: 'AIFC', ext: 'aifc', mime: 'audio/aiff', args: () => ['-vn', '-c:a', 'pcm_s16be'] },
+  { value: 'au', label: 'AU', ext: 'au', mime: 'audio/basic', args: () => ['-vn', '-c:a', 'pcm_s16be'] },
+  { value: 'caf', label: 'CAF', ext: 'caf', mime: 'audio/x-caf', args: () => ['-vn', '-c:a', 'flac'] },
+  { value: 'm4a', label: 'M4A', ext: 'm4a', mime: 'audio/mp4', args: () => ['-vn', '-c:a', 'aac'] },
+  { value: 'm4b', label: 'M4B', ext: 'm4b', mime: 'audio/mp4', args: () => ['-vn', '-c:a', 'aac'] },
+  { value: 'weba', label: 'WebM Audio', ext: 'weba', mime: 'audio/webm', args: () => ['-vn', '-c:a', 'libopus'] },
+  { value: 'wma', label: 'WMA', ext: 'wma', mime: 'audio/x-ms-wma', args: () => ['-vn', '-c:a', 'wmav2'] },
+  { value: 'voc', label: 'VOC', ext: 'voc', mime: 'audio/x-voc', args: () => ['-vn', '-c:a', 'pcm_s16le'] },
+  { value: 'oga', label: 'OGA', ext: 'oga', mime: 'audio/ogg', args: () => ['-vn', '-c:a', 'libvorbis'] },
+]
+
+const ALL_MEDIA_OUTPUTS = [...VIDEO_OUTPUTS, ...AUDIO_OUTPUTS]
 
 export function findImageDef(value: ImageFormat) {
   return IMAGE_OUTPUTS.find((o) => o.value === value)
 }
 
 export function findVideoDef(value: string) {
-  return VIDEO_OUTPUTS.find((o) => o.value === value)
+  return ALL_MEDIA_OUTPUTS.find((o) => o.value === value)
 }
 
 export function getImageFormatLabel(value: ImageFormat) {

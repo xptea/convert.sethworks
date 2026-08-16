@@ -3,16 +3,16 @@ import JSZip from 'jszip'
 import { convertImage, makeImageFilename, type ImageFormat } from '@/converters/image'
 import { convertVideo, makeVideoFilename, type VideoFormat } from '@/converters/video'
 import { downloadBlob } from '@/lib/download'
-import { IMAGE_OUTPUTS, VIDEO_OUTPUTS } from '@/lib/formats'
+import { IMAGE_OUTPUTS, VIDEO_OUTPUTS, AUDIO_OUTPUTS } from '@/lib/formats'
 import { FileDropzone } from './FileDropzone'
 import { FormatPicker } from './FormatPicker'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
-import { Image, Video, X, Download, Play, RotateCcw, FileArchive, ArrowRight } from 'lucide-react'
+import { Image, Video, Music, X, Download, Play, RotateCcw, FileArchive, ArrowRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-type FileType = 'image' | 'video'
+type FileType = 'image' | 'video' | 'audio'
 
 type Status = 'pending' | 'converting' | 'done' | 'error'
 
@@ -27,17 +27,32 @@ interface QueueItem {
   error?: string
 }
 
+const IMAGE_EXTS = new Set([
+  '3fr','arw','avif','bmp','cr2','cr3','crw','dcr','dng','eps','erf','gif','heic','heif','icns','ico','jfif','jpeg','jpg','mos','mrw','nef','odd','odg','orf','pef','png','ppm','ps','psb','psd','pub','raf','raw','rw2','tga','tif','tiff','webp','x3f','xcf','xps'
+])
+
+const VIDEO_EXTS = new Set([
+  '3g2','3gp','3gpp','avi','cavs','dv','dvr','flv','m2ts','m4v','mkv','mod','mov','mp4','mpeg','mpg','mts','mxf','ogg','ogv','rm','rmvb','swf','ts','vob','webm','wmv','wtv'
+])
+
+const AUDIO_EXTS = new Set([
+  'aac','ac3','aif','aifc','aiff','amr','au','caf','dss','flac','m4a','m4b','mp3','oga','opus','sf2','sfark','voc','wav','weba','wma'
+])
+
 function detectType(file: File): FileType {
   if (file.type.startsWith('image/')) return 'image'
   if (file.type.startsWith('video/')) return 'video'
-  const ext = file.name.split('.').pop()?.toLowerCase()
-  if (['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'svg', 'tiff', 'tif', 'ico'].includes(ext || '')) return 'image'
-  if (['mp4', 'mov', 'webm', 'avi', 'mkv', 'flv', 'ogv', '3gp', 'm4v', 'mpeg', 'mpg', 'asf', 'wmv', 'ts'].includes(ext || '')) return 'video'
+  if (file.type.startsWith('audio/')) return 'audio'
+  const ext = file.name.split('.').pop()?.toLowerCase() || ''
+  if (IMAGE_EXTS.has(ext)) return 'image'
+  if (VIDEO_EXTS.has(ext)) return 'video'
+  if (AUDIO_EXTS.has(ext)) return 'audio'
   return 'image'
 }
 
 function defaultFormat(file: File): ImageFormat | VideoFormat {
   const type = detectType(file)
+  if (type === 'audio') return 'mp3'
   if (type === 'video') return 'mp4'
   return 'jpg'
 }
@@ -189,9 +204,11 @@ export function ConverterQueue() {
   const hasPending = items.some((i) => i.status === 'pending')
   const hasImages = items.some((i) => i.type === 'image')
   const hasVideos = items.some((i) => i.type === 'video')
+  const hasAudios = items.some((i) => i.type === 'audio')
 
-  const imageFormatOptions = IMAGE_OUTPUTS.map((o) => ({ value: o.value, label: o.label }))
-  const videoFormatOptions = VIDEO_OUTPUTS.map((o) => ({ value: o.value, label: o.label }))
+  const imageFormatOptions = IMAGE_OUTPUTS.map((o) => ({ value: o.value as string, label: o.label }))
+  const videoFormatOptions = [...VIDEO_OUTPUTS, ...AUDIO_OUTPUTS].map((o) => ({ value: o.value, label: o.label }))
+  const audioFormatOptions = AUDIO_OUTPUTS.map((o) => ({ value: o.value, label: o.label }))
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-8">
@@ -200,7 +217,7 @@ export function ConverterQueue() {
       {items.length > 0 && (
         <Card>
           <CardContent className="space-y-4 p-4">
-            {(hasImages || hasVideos) && (
+            {(hasImages || hasVideos || hasAudios) && (
               <div className="flex flex-wrap items-center justify-end gap-2">
                 {hasImages && (
                   <FormatPicker
@@ -218,13 +235,28 @@ export function ConverterQueue() {
                     triggerClassName="w-44"
                   />
                 )}
+                {hasAudios && (
+                  <FormatPicker
+                    placeholder="Set all audio"
+                    options={audioFormatOptions}
+                    onChange={(v) => setAllFormats('audio', v as VideoFormat)}
+                    triggerClassName="w-44"
+                  />
+                )}
               </div>
             )}
 
             <div className="space-y-3">
               {items.map((item) => {
-                const isImage = item.type === 'image'
-                const formatOptions = isImage ? imageFormatOptions : videoFormatOptions
+                let formatOptions = imageFormatOptions
+                let icon = <Image className="size-5" />
+                if (item.type === 'video') {
+                  formatOptions = videoFormatOptions
+                  icon = <Video className="size-5" />
+                } else if (item.type === 'audio') {
+                  formatOptions = audioFormatOptions
+                  icon = <Music className="size-5" />
+                }
 
                 return (
                   <div
@@ -237,7 +269,7 @@ export function ConverterQueue() {
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div className="flex min-w-0 items-center gap-3">
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                          {isImage ? <Image className="size-5" /> : <Video className="size-5" />}
+                          {icon}
                         </div>
                         <div className="min-w-0">
                           <p className="truncate text-sm font-medium text-foreground" title={item.file.name}>
