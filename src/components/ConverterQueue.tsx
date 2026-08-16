@@ -338,17 +338,17 @@ export function ConverterQueue() {
 
                         <div className="flex items-center gap-2">
                           {item.status === 'done' ? (
-                            <Button size="sm" variant="outline" onClick={() => downloadOne(item)}>
+                            <Button variant="outline" onClick={() => downloadOne(item)}>
                               <Download className="mr-1.5 size-4" />
                               Download
                             </Button>
                           ) : item.status === 'converting' ? (
-                            <Button size="sm" disabled>
+                            <Button disabled>
                               <Loader2 className="mr-1.5 size-4 animate-spin" />
                               Converting
                             </Button>
                           ) : (
-                            <Button size="sm" onClick={() => convertOne(item.id)} disabled={hasConverting}>
+                            <Button onClick={() => convertOne(item.id)} disabled={hasConverting}>
                               <Play className="mr-1.5 size-4" />
                               Convert
                             </Button>

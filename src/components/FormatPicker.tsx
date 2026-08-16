@@ -44,7 +44,7 @@ export function FormatPicker({
       <Popover.Trigger
         disabled={disabled}
         className={cn(
-          'flex items-center justify-between gap-2 rounded-lg border border-input bg-background px-3 py-2 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50',
+          'flex h-8 items-center justify-between gap-2 rounded-lg border border-input bg-background px-3 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50',
           triggerClassName
         )}
       >
