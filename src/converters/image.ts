@@ -67,6 +67,10 @@ async function convertImageFfmpeg(file: File, options: ImageOptions): Promise<Bl
     args.push('-qscale:v', String(qscale))
   } else if (def.value === 'webp') {
     args.push('-c:v', 'libwebp', '-q:v', String(Math.round(quality * 100)))
+  } else if (def.value === 'png') {
+    args.push('-c:v', 'png')
+  } else if (def.value === 'bmp') {
+    args.push('-c:v', 'bmp')
   }
 
   args.push(outputName)
@@ -95,7 +99,12 @@ export async function convertImage(file: File, options: ImageOptions): Promise<B
   if (!def) throw new Error(`Unsupported image format: ${options.format}`)
 
   if (def.engine === 'canvas') {
-    return convertImageCanvas(file, options)
+    try {
+      return await convertImageCanvas(file, options)
+    } catch {
+      // Canvas can only decode PNG/JPEG/WebP/etc. Fallback to ffmpeg for TIFF/ICO/etc.
+      return convertImageFfmpeg(file, options)
+    }
   }
   return convertImageFfmpeg(file, options)
 }
