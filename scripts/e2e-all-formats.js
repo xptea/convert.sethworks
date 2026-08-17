@@ -59,6 +59,7 @@ if (!videoPath) throw new Error(`Video test file not found: ${videoName}`)
 
 async function testFormat(page, job) {
   const { file, defaultLabel, format } = job
+  const start = Date.now()
 
   await page.goto(baseURL)
   await page.waitForSelector('text=Drop files here or click to browse', { timeout: 120000 })
@@ -100,6 +101,9 @@ async function testFormat(page, job) {
   if (!filename.toLowerCase().endsWith(`.${format.ext}`)) {
     throw new Error(`Expected .${format.ext} for ${format.label}, got ${filename}`)
   }
+
+  const duration = (Date.now() - start) / 1000
+  return { duration, size: buffer.length }
 }
 
 async function run() {
@@ -133,12 +137,12 @@ async function run() {
       const job = queue.shift()
       if (!job) continue
       try {
-        await testFormat(page, job)
-        console.log(`[PASS] ${job.type} -> ${job.format.label}`)
-        results.push({ type: job.type, label: job.format.label, ok: true })
+        const { duration, size } = await testFormat(page, job)
+        console.log(`[PASS] ${job.type} -> ${job.format.label} (${duration.toFixed(2)}s)`)
+        results.push({ type: job.type, label: job.format.label, ok: true, duration, size })
       } catch (e) {
         console.error(`[FAIL] ${job.type} -> ${job.format.label}:`, e.message)
-        results.push({ type: job.type, label: job.format.label, ok: false, error: e.message })
+        results.push({ type: job.type, label: job.format.label, ok: false, error: e.message, duration: 0, size: 0 })
       }
     }
 
@@ -159,12 +163,27 @@ async function run() {
   const total = results.length
   const passed = total - failures.length
 
-  console.log('\n---')
-  console.log(`${passed}/${total} conversions passed`)
-  if (failures.length > 0) {
-    console.log('Failures:')
-    for (const f of failures) {
-      console.log(`  - ${f.type} ${f.label}: ${f.error}`)
+  if (process.env.BENCHMARK) {
+    const rows = [...results].sort((a, b) => a.type.localeCompare(b.type) || a.duration - b.duration)
+    console.log('\n## Benchmark Results\n')
+    console.log('| Type | Format | Time (s) | Output (KB) | Result |')
+    console.log('|------|--------|----------|-------------|--------|')
+    for (const r of rows) {
+      const size = r.size > 0 ? (r.size / 1024).toFixed(2) : '-'
+      const time = r.duration > 0 ? r.duration.toFixed(2) : '-'
+      const status = r.ok ? 'PASS' : `FAIL: ${r.error}`
+      console.log(`| ${r.type} | ${r.label} | ${time} | ${size} | ${status} |`)
+    }
+    const totalTime = results.reduce((sum, r) => sum + r.duration, 0)
+    console.log(`\nTotal: ${passed}/${total} passed | Combined wall time: ${totalTime.toFixed(2)}s`)
+  } else {
+    console.log('\n---')
+    console.log(`${passed}/${total} conversions passed`)
+    if (failures.length > 0) {
+      console.log('Failures:')
+      for (const f of failures) {
+        console.log(`  - ${f.type} ${f.label}: ${f.error}`)
+      }
     }
   }
 
