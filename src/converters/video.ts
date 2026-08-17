@@ -1,5 +1,5 @@
 import { findVideoDef, getVideoFormatExt, getVideoFormatMime, type VideoFormat } from '@/lib/formats'
-import { initFFmpeg, execFFmpeg } from './ffmpeg'
+import { initFFmpeg, execFFmpeg, getLastFFmpegError } from './ffmpeg'
 
 export type { VideoFormat }
 
@@ -23,6 +23,7 @@ export async function convertVideo(
   onProgress?: (p: number) => void
 ): Promise<Blob> {
   const ffmpeg = await initFFmpeg()
+  const threadCount = Math.max(1, Math.min(4, navigator.hardwareConcurrency || 2))
 
   const profile = findVideoDef(options.format)
   if (!profile) throw new Error(`Unsupported video format: ${options.format}`)
@@ -59,11 +60,25 @@ export async function convertVideo(
       // Copy failed (incompatible codec), fall through to re-encode.
     }
 
-    const args = ['-i', inputName, '-y', ...profile.args(qualityToLevel(options.quality)), outputName]
+    const args = [
+      '-threads', String(threadCount),
+      '-i', inputName,
+      '-y',
+      '-threads', String(threadCount),
+      ...profile.args(qualityToLevel(options.quality)),
+      outputName,
+    ]
 
-    const exitCode = await execFFmpeg(args, onProgress)
+    let exitCode: number
+    try {
+      exitCode = await execFFmpeg(args, onProgress)
+    } catch (error) {
+      const detail = getLastFFmpegError()
+      const message = error instanceof Error ? error.message : String(error)
+      throw new Error(detail ? `${message}: ${detail}` : message)
+    }
     if (exitCode !== 0) {
-      throw new Error(`FFmpeg exited with code ${exitCode}`)
+      throw new Error(`FFmpeg exited with code ${exitCode}: ${getLastFFmpegError()}`)
     }
 
     const data = await ffmpeg.readFile(outputName)

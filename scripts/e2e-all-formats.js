@@ -2,11 +2,11 @@ import { chromium } from 'playwright'
 import { readFileSync, existsSync } from 'fs'
 import { resolve } from 'path'
 
-const baseURL = process.env.BASE_URL || 'http://localhost:4173'
+const baseURL = process.env.BASE_URL || 'http://localhost:5173'
 const imageName = process.env.IMAGE || 'image_test1.png'
 const videoName = process.env.VIDEO || 'video_test1.mp4'
 const limit = Number(process.env.LIMIT) || 0
-const concurrency = Number(process.env.CONCURRENCY) || (process.env.FAST ? 6 : 3)
+const concurrency = Number(process.env.CONCURRENCY) || 1
 
 const FAST_IMAGE = ['PNG', 'JPEG', 'WebP', 'BMP']
 const FAST_VIDEO = [
@@ -62,6 +62,13 @@ async function testFormat(page, job) {
   const start = Date.now()
 
   await page.goto(baseURL)
+  const isolation = await page.evaluate(() => ({
+    crossOriginIsolated: globalThis.crossOriginIsolated,
+    sharedArrayBuffer: typeof SharedArrayBuffer !== 'undefined',
+  }))
+  if (!isolation.crossOriginIsolated || !isolation.sharedArrayBuffer) {
+    throw new Error('Browser is not cross-origin isolated; core-mt cannot use SharedArrayBuffer')
+  }
   await page.waitForSelector('text=Drop files here or click to browse', { timeout: 120000 })
 
   const input = page.locator('input[type="file"]').first()
@@ -80,7 +87,10 @@ async function testFormat(page, job) {
     const downloads = await page.getByRole('button', { name: /^Download$/, exact: true }).count()
     const errors = await page.locator('.text-destructive').count()
     if (downloads > 0) break
-    if (errors > 0) throw new Error(`Conversion failed for ${format.label}`)
+    if (errors > 0) {
+      const detail = await page.locator('.text-destructive').first().innerText()
+      throw new Error(`Conversion failed for ${format.label}: ${detail}`)
+    }
     await page.waitForTimeout(1000)
   }
 
@@ -117,12 +127,15 @@ async function run() {
     ? videoFormats.filter((f) => FAST_VIDEO.includes(f.label))
     : videoFormats
 
-  const target = process.env.TARGET
-  const targetImage = target
-    ? selectedImage.filter((f) => f.label === target || f.value === target)
+  const targets = (process.env.TARGETS || process.env.TARGET || '')
+    .split(',')
+    .map((target) => target.trim())
+    .filter(Boolean)
+  const targetImage = targets.length > 0
+    ? selectedImage.filter((f) => targets.includes(f.label) || targets.includes(f.value))
     : selectedImage
-  const targetVideo = target
-    ? selectedVideo.filter((f) => f.label === target || f.value === target)
+  const targetVideo = targets.length > 0
+    ? selectedVideo.filter((f) => targets.includes(f.label) || targets.includes(f.value))
     : selectedVideo
 
   const queue = []
@@ -134,7 +147,7 @@ async function run() {
   }
 
   const results = []
-  const workers = Math.min(queue.length, Number(process.env.CONCURRENCY) || queue.length)
+  const workers = Math.min(queue.length, concurrency)
 
   async function worker() {
     const page = await context.newPage()

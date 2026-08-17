@@ -2,7 +2,7 @@ import { chromium } from 'playwright'
 import { readFileSync, existsSync, writeFileSync } from 'fs'
 import { resolve } from 'path'
 
-const baseURL = process.env.BASE_URL || 'http://localhost:4173'
+const baseURL = process.env.BASE_URL || 'http://localhost:5173'
 
 function makeWav(path) {
   if (existsSync(path)) return

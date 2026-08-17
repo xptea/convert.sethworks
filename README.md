@@ -1,32 +1,36 @@
-# React + TypeScript + Vite
+# Local Convert
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Local Convert is a private image, video, and audio converter that runs entirely in the browser. Common image conversions use Canvas, while specialist image formats, video, and audio use the multithreaded FFmpeg WebAssembly core. Selected media is not uploaded to a conversion server.
 
-Currently, two official plugins are available:
+## Local development
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Use Node.js 22 or newer.
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```sh
+npm install
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+## Production verification
+
+```sh
+npm run build
+npm run lint
+npm run verify:deploy
+```
+
+The deployment verifier checks required routes and SEO files, parses the structured data, validates the compressed WASM file and its Cloudflare headers, and rejects any output asset larger than Cloudflare Pages' 25 MiB limit.
+
+## Cloudflare Pages
+
+Configure the Pages project with:
+
+- Framework preset: React (Vite)
+- Build command: `npm run build`
+- Build output directory: `dist`
+- Root directory: repository root
+- Node.js version: 22
+
+No Pages Functions, server, database, or runtime environment variables are required. The `public/_headers` file enables cross-origin isolation for multithreaded FFmpeg and tells Cloudflare that the generated WASM asset is already gzip-compressed.
+
+Point the production custom domain at `convert.sethworks.xyz`. Preview deployments on `pages.dev` receive Cloudflare's automatic `X-Robots-Tag: noindex` header, while the canonical URLs, sitemap, and structured data consistently reference the production domain.

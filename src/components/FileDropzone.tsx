@@ -91,7 +91,7 @@ export function FileDropzone({ onFiles }: FileDropzoneProps) {
       <input
         ref={inputRef}
         type="file"
-        accept="image/*,video/*,audio/*,.3fr,.arw,.avif,.bmp,.cr2,.cr3,.crw,.dcr,.dng,.eps,.erf,.gif,.heic,.heif,.icns,.ico,.jfif,.jpeg,.jpg,.mos,.mrw,.nef,.odd,.odg,.orf,.pef,.png,.ppm,.ps,.psb,.psd,.pub,.raf,.raw,.rw2,.tga,.tif,.tiff,.webp,.x3f,.xcf,.xps,.3g2,.3gp,.3gpp,.avi,.cavs,.dv,.dvr,.flv,.m2ts,.m4v,.mkv,.mod,.mov,.mp4,.mpeg,.mpg,.mts,.mxf,.ogg,.ogv,.rm,.rmvb,.swf,.ts,.vob,.webm,.wmv,.wtv,.aac,.ac3,.aif,.aifc,.aiff,.amr,.au,.caf,.dss,.flac,.m4a,.m4b,.mp3,.oga,.opus,.sf2,.sfark,.voc,.wav,.weba,.wma"
+        accept="image/*,video/*,audio/*,.3fr,.apng,.arw,.avif,.bmp,.cr2,.cr3,.crw,.dcr,.dng,.dpx,.eps,.erf,.exr,.fit,.fits,.fts,.gif,.heic,.heif,.icns,.ico,.jfif,.jls,.jp2,.jpeg,.jpg,.mos,.mrw,.nef,.odd,.odg,.orf,.pam,.pbm,.pcx,.pef,.pfm,.pgm,.png,.ppm,.ps,.psb,.psd,.pub,.qoi,.raf,.ras,.raw,.rw2,.sgi,.svg,.tga,.tif,.tiff,.webp,.x3f,.xbm,.xcf,.xps,.3g2,.3gp,.3gpp,.amv,.avi,.cavs,.dv,.dvr,.flv,.h261,.h263,.m2ts,.m4v,.mkv,.mod,.mov,.mp4,.mpeg,.mpg,.mts,.mxf,.nut,.ogg,.ogv,.rm,.rmvb,.swf,.ts,.vob,.webm,.wmv,.wtv,.y4m,.aac,.ac3,.aif,.aifc,.aiff,.amr,.au,.caf,.dss,.flac,.m4a,.m4b,.mp3,.oga,.opus,.sf2,.sfark,.voc,.wav,.weba,.wma"
         multiple
         className="hidden"
         onChange={onChange}

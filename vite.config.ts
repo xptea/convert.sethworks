@@ -42,6 +42,14 @@ const wasmGzipPreview = {
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss(), wasmGzipPreview],
+  build: {
+    rollupOptions: {
+      input: {
+        main: resolve(__dirname, 'index.html'),
+        about: resolve(__dirname, 'about/index.html'),
+      },
+    },
+  },
   resolve: {
     alias: {
       '@': resolve(__dirname, './src'),

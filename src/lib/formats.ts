@@ -14,6 +14,15 @@ export type ImageFormat =
   | 'pfm'
   | 'sgi'
   | 'dpx'
+  | 'ico'
+  | 'apng'
+  | 'jp2'
+  | 'jls'
+  | 'exr'
+  | 'qoi'
+  | 'pcx'
+  | 'fits'
+  | 'sunras'
 
 export interface ImageOutputDef {
   value: ImageFormat
@@ -40,6 +49,15 @@ export const IMAGE_OUTPUTS: ImageOutputDef[] = [
   { value: 'pfm', label: 'PFM', ext: 'pfm', mime: 'image/x-portable-floatmap', engine: 'ffmpeg' },
   { value: 'sgi', label: 'SGI', ext: 'sgi', mime: 'image/sgi', engine: 'ffmpeg' },
   { value: 'dpx', label: 'DPX', ext: 'dpx', mime: 'image/x-dpx', engine: 'ffmpeg' },
+  { value: 'ico', label: 'ICO', ext: 'ico', mime: 'image/x-icon', engine: 'ffmpeg' },
+  { value: 'apng', label: 'APNG', ext: 'apng', mime: 'image/apng', engine: 'ffmpeg' },
+  { value: 'jp2', label: 'JPEG 2000', ext: 'jp2', mime: 'image/jp2', engine: 'ffmpeg' },
+  { value: 'jls', label: 'JPEG-LS', ext: 'jls', mime: 'image/jls', engine: 'ffmpeg' },
+  { value: 'exr', label: 'OpenEXR', ext: 'exr', mime: 'image/x-exr', engine: 'ffmpeg' },
+  { value: 'qoi', label: 'QOI', ext: 'qoi', mime: 'image/qoi', engine: 'ffmpeg' },
+  { value: 'pcx', label: 'PCX', ext: 'pcx', mime: 'image/x-pcx', engine: 'ffmpeg' },
+  { value: 'fits', label: 'FITS', ext: 'fits', mime: 'image/fits', engine: 'ffmpeg' },
+  { value: 'sunras', label: 'Sun Raster', ext: 'ras', mime: 'image/x-cmu-raster', engine: 'ffmpeg' },
 ]
 
 export type VideoFormat = string
@@ -71,6 +89,22 @@ function vp8Vorbis(quality: number) {
   return ['-c:v', 'libvpx', '-crf', String(crf), '-b:v', '0', '-speed', '5', '-c:a', 'libvorbis']
 }
 
+function hevcAac(quality: number) {
+  const crf = Math.max(20, 36 - (quality - 1) * 4)
+  return [
+    '-c:v', 'libx265',
+    '-crf', String(crf),
+    '-preset', 'ultrafast',
+    '-tag:v', 'hvc1',
+    '-c:a', 'aac',
+    '-movflags', '+faststart',
+  ]
+}
+
+function losslessFfv1() {
+  return ['-c:v', 'ffv1', '-level', '3', '-c:a', 'flac']
+}
+
 function theoraVorbis(_quality: number) {
   return ['-c:v', 'libtheora', '-q:v', '4', '-c:a', 'libvorbis', '-q:a', '4']
 }
@@ -82,12 +116,60 @@ export const VIDEO_OUTPUTS: VideoOutputDef[] = [
   { value: 'mkv', label: 'MKV', ext: 'mkv', mime: 'video/x-matroska', args: x264Aac, copyable: true },
   { value: 'avi', label: 'AVI', ext: 'avi', mime: 'video/x-msvideo', args: x264Aac, copyable: true },
   { value: 'webm-vp8', label: 'WebM (VP8)', ext: 'webm', mime: 'video/webm', args: vp8Vorbis },
+  { value: 'mp4-hevc', label: 'H.265 (MP4)', ext: 'mp4', mime: 'video/mp4', args: hevcAac },
   { value: 'flv', label: 'FLV', ext: 'flv', mime: 'video/x-flv', args: x264Aac, copyable: true },
   { value: 'ogv', label: 'OGV (Theora)', ext: 'ogv', mime: 'video/ogg', args: theoraVorbis },
   { value: '3gp', label: '3GP', ext: '3gp', mime: 'video/3gpp', args: x264Aac, copyable: true },
   { value: 'mpeg', label: 'MPEG-1', ext: 'mpeg', mime: 'video/mpeg', args: (q) => ['-c:v', 'mpeg1video', '-qscale:v', String(Math.max(2, 14 - q)), '-c:a', 'mp2'] },
   { value: 'mpeg2', label: 'MPEG-2', ext: 'mpg', mime: 'video/mpeg', args: (q) => ['-c:v', 'mpeg2video', '-qscale:v', String(Math.max(2, 14 - q)), '-c:a', 'mp2'] },
   { value: 'asf', label: 'ASF (WMV)', ext: 'asf', mime: 'video/x-ms-asf', args: () => ['-c:v', 'wmv2', '-c:a', 'wmav2'] },
+  { value: 'mpeg4-avi', label: 'MPEG-4 (AVI)', ext: 'avi', mime: 'video/x-msvideo', args: (q) => [
+    '-c:v', 'mpeg4', '-qscale:v', String(Math.max(2, 14 - q)), '-c:a', 'libmp3lame', '-q:a', '4',
+  ]},
+  { value: 'mpegts', label: 'MPEG-TS', ext: 'ts', mime: 'video/mp2t', args: (q) => [
+    '-c:v', 'libx264', '-crf', String(Math.max(18, 35 - (q - 1) * 4)), '-preset', 'veryfast',
+    '-c:a', 'aac', '-f', 'mpegts',
+  ]},
+  { value: 'prores', label: 'ProRes (MOV)', ext: 'mov', mime: 'video/quicktime', args: () => [
+    '-c:v', 'prores_ks', '-profile:v', '2', '-pix_fmt', 'yuv422p10le', '-c:a', 'pcm_s16le',
+  ]},
+  { value: 'dnxhr', label: 'DNxHR (MOV)', ext: 'mov', mime: 'video/quicktime', args: () => [
+    '-c:v', 'dnxhd', '-profile:v', 'dnxhr_lb', '-pix_fmt', 'yuv422p', '-c:a', 'pcm_s16le',
+  ]},
+  { value: 'ffv1', label: 'FFV1 (MKV)', ext: 'mkv', mime: 'video/x-matroska', args: losslessFfv1 },
+  { value: 'huffyuv', label: 'HuffYUV (AVI)', ext: 'avi', mime: 'video/x-msvideo', args: () => [
+    '-c:v', 'huffyuv', '-pix_fmt', 'yuv422p', '-c:a', 'pcm_s16le',
+  ]},
+  { value: 'utvideo', label: 'UTVideo (AVI)', ext: 'avi', mime: 'video/x-msvideo', args: () => [
+    '-c:v', 'utvideo', '-pix_fmt', 'yuv420p', '-c:a', 'pcm_s16le',
+  ]},
+  { value: 'dv', label: 'DV', ext: 'dv', mime: 'video/dv', args: () => [
+    '-vf', 'scale=720:480:force_original_aspect_ratio=decrease,pad=720:480:(ow-iw)/2:(oh-ih)/2,fps=30000/1001',
+    '-c:v', 'dvvideo', '-pix_fmt', 'yuv411p', '-c:a', 'pcm_s16le', '-ar', '48000', '-ac', '2',
+  ]},
+  { value: 'vob', label: 'VOB (DVD Video)', ext: 'vob', mime: 'video/dvd', args: (q) => [
+    '-c:v', 'mpeg2video', '-qscale:v', String(Math.max(2, 14 - q)), '-c:a', 'ac3', '-f', 'vob',
+  ]},
+  { value: 'nut', label: 'NUT (Lossless)', ext: 'nut', mime: 'video/x-nut', args: losslessFfv1 },
+  { value: 'y4m', label: 'YUV4MPEG', ext: 'y4m', mime: 'video/x-yuv4mpeg', args: () => [
+    '-an', '-pix_fmt', 'yuv420p', '-f', 'yuv4mpegpipe',
+  ]},
+  { value: 'rm', label: 'RealMedia', ext: 'rm', mime: 'application/vnd.rn-realmedia', args: () => [
+    '-vf', 'scale=320:-2', '-c:v', 'rv20', '-b:v', '400k', '-c:a', 'ac3', '-b:a', '96k', '-f', 'rm',
+  ]},
+  { value: 'h261', label: 'H.261', ext: 'h261', mime: 'video/h261', args: () => [
+    '-vf', 'scale=176:144', '-an', '-c:v', 'h261', '-f', 'h261',
+  ]},
+  { value: 'h263', label: 'H.263', ext: 'h263', mime: 'video/h263', args: () => [
+    '-vf', 'scale=176:144', '-an', '-c:v', 'h263', '-f', 'h263',
+  ]},
+  { value: 'amv', label: 'AMV', ext: 'amv', mime: 'video/x-amv', args: () => [
+    '-vf', 'scale=160:120,pad=160:128:0:4,fps=25', '-c:v', 'amv', '-c:a', 'adpcm_ima_amv', '-ar', '22050', '-ac', '1',
+    '-block_size', '882',
+  ]},
+  { value: 'swf', label: 'SWF Video', ext: 'swf', mime: 'application/x-shockwave-flash', args: () => [
+    '-c:v', 'flv', '-c:a', 'libmp3lame', '-f', 'swf',
+  ]},
   { value: 'gif', label: 'GIF', ext: 'gif', mime: 'image/gif', args: () => [
     '-vf', 'fps=5,scale=320:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=64[p];[s1][p]paletteuse=dither=bayer',
     '-loop', '0',

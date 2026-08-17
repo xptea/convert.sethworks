@@ -3,18 +3,24 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "scripts": {
     "copy:ffmpeg": "node scripts/copy-ffmpeg.js",
     "postinstall": "node scripts/copy-ffmpeg.js",
     "dev": "vite",
     "build": "tsc -b && node scripts/copy-ffmpeg.js && vite build && node scripts/gzip-wasm.js",
     "test": "node scripts/e2e-smoke.js",
+    "test:roundtrip": "node scripts/e2e-roundtrip-formats.js",
+    "test:ux": "node scripts/e2e-ux-test.js",
     "lint": "oxlint",
+    "verify:deploy": "node scripts/verify-deploy.js",
     "preview": "vite preview"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
-    "@ffmpeg/core": "^0.12.10",
+    "@ffmpeg/core-mt": "^0.12.10",
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2",
     "class-variance-authority": "^0.7.1",
