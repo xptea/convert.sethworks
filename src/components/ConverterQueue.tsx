@@ -11,7 +11,8 @@ import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
 import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
-import { Image, Video, Music, X, Download, Play, Loader2, FileArchive, ArrowRight, Settings2 } from 'lucide-react'
+import { ContextMenu, ContextMenuItem } from '@/components/ui/context-menu'
+import { Image, Video, Music, Download, Play, Loader2, FileArchive, ArrowRight, Settings2, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type FileType = 'image' | 'video' | 'audio'
@@ -128,6 +129,8 @@ function QualitySlider({
 
 export function ConverterQueue() {
   const [items, setItems] = useState<QueueItem[]>([])
+  const [contextMenu, setContextMenu] = useState<{ id: string; x: number; y: number } | null>(null)
+  const [settingsId, setSettingsId] = useState<string | null>(null)
 
   const addFiles = useCallback((files: File[]) => {
     const newItems: QueueItem[] = files.map((file) => ({
@@ -280,8 +283,12 @@ export function ConverterQueue() {
                       'flex flex-col gap-2 rounded-xl border p-3 transition-colors',
                       item.status === 'converting' ? 'border-primary/40 bg-primary/5' : 'border-border bg-card'
                     )}
+                    onContextMenu={(e) => {
+                      e.preventDefault()
+                      setContextMenu({ id: item.id, x: e.clientX, y: e.clientY })
+                    }}
                   >
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex min-w-0 items-center gap-3">
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
                           {icon}
@@ -309,7 +316,10 @@ export function ConverterQueue() {
                           triggerClassName="w-40"
                         />
 
-                        <Popover.Root>
+                        <Popover.Root
+                          open={settingsId === item.id}
+                          onOpenChange={(open) => setSettingsId(open ? item.id : null)}
+                        >
                           <Popover.Trigger
                             disabled={item.status === 'converting'}
                             className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-input bg-background text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
@@ -353,16 +363,6 @@ export function ConverterQueue() {
                               Convert
                             </Button>
                           )}
-
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => removeItem(item.id)}
-                            disabled={item.status === 'converting'}
-                            className="text-muted-foreground hover:text-destructive"
-                          >
-                            <X className="size-4" />
-                          </Button>
                         </div>
                       </div>
                     </div>
@@ -379,6 +379,41 @@ export function ConverterQueue() {
                     {item.status === 'error' && item.error && (
                       <p className="w-full text-sm text-destructive">{item.error}</p>
                     )}
+
+                    <ContextMenu
+                      open={contextMenu?.id === item.id}
+                      x={contextMenu?.x ?? 0}
+                      y={contextMenu?.y ?? 0}
+                      onClose={() => setContextMenu(null)}
+                    >
+                      {item.status === 'done' ? (
+                        <ContextMenuItem onClick={() => { downloadOne(item); setContextMenu(null) }}>
+                          <Download className="size-4" />
+                          Download
+                        </ContextMenuItem>
+                      ) : item.status === 'converting' ? (
+                        <ContextMenuItem onClick={() => {}} disabled>
+                          <Loader2 className="size-4" />
+                          Converting
+                        </ContextMenuItem>
+                      ) : (
+                        <ContextMenuItem onClick={() => { convertOne(item.id); setContextMenu(null) }}>
+                          <Play className="size-4" />
+                          Convert
+                        </ContextMenuItem>
+                      )}
+                      <ContextMenuItem onClick={() => { setSettingsId(item.id); setContextMenu(null) }}>
+                        <Settings2 className="size-4" />
+                        Output settings
+                      </ContextMenuItem>
+                      <ContextMenuItem
+                        onClick={() => { removeItem(item.id); setContextMenu(null) }}
+                        destructive
+                      >
+                        <Trash2 className="size-4" />
+                        Delete
+                      </ContextMenuItem>
+                    </ContextMenu>
                   </div>
                 )
               })}
