@@ -117,11 +117,19 @@ async function run() {
     ? videoFormats.filter((f) => FAST_VIDEO.includes(f.label))
     : videoFormats
 
+  const target = process.env.TARGET
+  const targetImage = target
+    ? selectedImage.filter((f) => f.label === target || f.value === target)
+    : selectedImage
+  const targetVideo = target
+    ? selectedVideo.filter((f) => f.label === target || f.value === target)
+    : selectedVideo
+
   const queue = []
-  for (const format of limit ? selectedImage.slice(0, limit) : selectedImage) {
+  for (const format of limit ? targetImage.slice(0, limit) : targetImage) {
     queue.push({ type: 'image', file: imagePath, defaultLabel: imageDefault, format })
   }
-  for (const format of limit ? selectedVideo.slice(0, limit) : selectedVideo) {
+  for (const format of limit ? targetVideo.slice(0, limit) : targetVideo) {
     queue.push({ type: 'video', file: videoPath, defaultLabel: videoDefault, format })
   }
 

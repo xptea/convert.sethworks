@@ -6,18 +6,15 @@ export type ImageFormat =
   | 'gif'
   | 'tiff'
   | 'tga'
-  | 'ico'
   | 'ppm'
   | 'pgm'
   | 'pbm'
-  | 'xpm'
   | 'xbm'
   | 'pam'
   | 'pfm'
   | 'sgi'
   | 'sun'
   | 'ras'
-  | 'iff'
   | 'dpx'
 
 export interface ImageOutputDef {
@@ -37,18 +34,15 @@ export const IMAGE_OUTPUTS: ImageOutputDef[] = [
   { value: 'gif', label: 'GIF', ext: 'gif', mime: 'image/gif', engine: 'ffmpeg' },
   { value: 'tiff', label: 'TIFF', ext: 'tiff', mime: 'image/tiff', engine: 'ffmpeg' },
   { value: 'tga', label: 'TGA', ext: 'tga', mime: 'image/x-targa', engine: 'ffmpeg' },
-  { value: 'ico', label: 'ICO', ext: 'ico', mime: 'image/x-icon', engine: 'ffmpeg' },
   { value: 'ppm', label: 'PPM', ext: 'ppm', mime: 'image/x-portable-pixmap', engine: 'ffmpeg' },
   { value: 'pgm', label: 'PGM', ext: 'pgm', mime: 'image/x-portable-graymap', engine: 'ffmpeg' },
   { value: 'pbm', label: 'PBM', ext: 'pbm', mime: 'image/x-portable-bitmap', engine: 'ffmpeg' },
-  { value: 'xpm', label: 'XPM', ext: 'xpm', mime: 'image/x-xpixmap', engine: 'ffmpeg' },
   { value: 'xbm', label: 'XBM', ext: 'xbm', mime: 'image/x-xbitmap', engine: 'ffmpeg' },
   { value: 'pam', label: 'PAM', ext: 'pam', mime: 'image/x-portable-arbitrarymap', engine: 'ffmpeg' },
   { value: 'pfm', label: 'PFM', ext: 'pfm', mime: 'image/x-portable-floatmap', engine: 'ffmpeg' },
   { value: 'sgi', label: 'SGI', ext: 'sgi', mime: 'image/sgi', engine: 'ffmpeg' },
   { value: 'sun', label: 'SUN', ext: 'sun', mime: 'image/x-sun-raster', engine: 'ffmpeg' },
   { value: 'ras', label: 'RAS', ext: 'ras', mime: 'image/x-sun-raster', engine: 'ffmpeg' },
-  { value: 'iff', label: 'IFF', ext: 'iff', mime: 'image/x-iff', engine: 'ffmpeg' },
   { value: 'dpx', label: 'DPX', ext: 'dpx', mime: 'image/x-dpx', engine: 'ffmpeg' },
 ]
 
@@ -76,30 +70,6 @@ function x264Aac(quality: number) {
   ]
 }
 
-function x265Aac(quality: number) {
-  const crf = Math.max(18, 40 - (quality - 1) * 4)
-  return [
-    '-c:v', 'libx265',
-    '-crf', String(crf),
-    '-preset', 'ultrafast',
-    '-c:a', 'aac',
-    '-movflags', '+faststart',
-    '-tag:v', 'hvc1',
-  ]
-}
-
-function vp9Opus(quality: number) {
-  const crf = Math.max(18, 63 - (quality - 1) * 4)
-  return [
-    '-c:v', 'libvpx-vp9',
-    '-crf', String(crf),
-    '-b:v', '0',
-    '-cpu-used', '8',
-    '-row-mt', '1',
-    '-c:a', 'libopus',
-  ]
-}
-
 function vp8Vorbis(quality: number) {
   const crf = Math.max(18, 35 - (quality - 1) * 4)
   return ['-c:v', 'libvpx', '-crf', String(crf), '-b:v', '0', '-speed', '5', '-c:a', 'libvorbis']
@@ -111,12 +81,10 @@ function theoraVorbis(_quality: number) {
 
 export const VIDEO_OUTPUTS: VideoOutputDef[] = [
   { value: 'mp4', label: 'MP4 (H.264)', ext: 'mp4', mime: 'video/mp4', args: x264Aac, copyable: true },
-  { value: 'mp4-h265', label: 'MP4 (H.265)', ext: 'mp4', mime: 'video/mp4', args: x265Aac },
   { value: 'mov', label: 'MOV', ext: 'mov', mime: 'video/quicktime', args: x264Aac, copyable: true },
   { value: 'm4v', label: 'M4V', ext: 'm4v', mime: 'video/x-m4v', args: x264Aac, copyable: true },
   { value: 'mkv', label: 'MKV', ext: 'mkv', mime: 'video/x-matroska', args: x264Aac, copyable: true },
   { value: 'avi', label: 'AVI', ext: 'avi', mime: 'video/x-msvideo', args: x264Aac, copyable: true },
-  { value: 'webm', label: 'WebM (VP9)', ext: 'webm', mime: 'video/webm', args: vp9Opus },
   { value: 'webm-vp8', label: 'WebM (VP8)', ext: 'webm', mime: 'video/webm', args: vp8Vorbis },
   { value: 'flv', label: 'FLV', ext: 'flv', mime: 'video/x-flv', args: x264Aac, copyable: true },
   { value: 'ogv', label: 'OGV (Theora)', ext: 'ogv', mime: 'video/ogg', args: theoraVorbis },
