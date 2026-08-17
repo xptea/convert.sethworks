@@ -10,7 +10,6 @@ import { FormatPicker } from './FormatPicker'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
 import { Card, CardContent } from '@/components/ui/card'
-import { Progress } from '@/components/ui/progress'
 import { ContextMenu, ContextMenuItem } from '@/components/ui/context-menu'
 import { Image, Video, Music, Download, Play, Loader2, FileArchive, Settings2, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -263,8 +262,8 @@ export function ConverterQueue() {
       <FileDropzone onFiles={addFiles} />
 
       {items.length > 0 && (
-        <Card size="sm">
-          <CardContent className="space-y-3 p-3">
+        <Card size="sm" className="py-0">
+          <CardContent className="space-y-2 p-2">
             <div className="space-y-3">
               {items.map((item) => {
                 let formatOptions = imageFormatOptions
@@ -281,7 +280,7 @@ export function ConverterQueue() {
                   <div
                     key={item.id}
                     className={cn(
-                      'flex flex-col gap-2 rounded-xl border p-3 transition-colors',
+                      'relative flex flex-col gap-2 overflow-hidden rounded-xl border p-3 transition-colors',
                       item.status === 'converting' ? 'border-primary/40 bg-primary/5' : 'border-border bg-card'
                     )}
                     onContextMenu={(e) => {
@@ -349,17 +348,17 @@ export function ConverterQueue() {
 
                         <div className="flex items-center gap-2">
                           {item.status === 'done' ? (
-                            <Button variant="outline" onClick={() => downloadOne(item)}>
+                            <Button className="w-36" variant="outline" onClick={() => downloadOne(item)}>
                               <Download className="mr-1.5 size-4" />
                               Download
                             </Button>
                           ) : item.status === 'converting' ? (
-                            <Button disabled>
+                            <Button className="w-36" disabled>
                               <Loader2 className="mr-1.5 size-4 animate-spin" />
                               Converting
                             </Button>
                           ) : (
-                            <Button onClick={() => convertOne(item.id)} disabled={hasConverting}>
+                            <Button className="w-36" onClick={() => convertOne(item.id)} disabled={hasConverting}>
                               <Play className="mr-1.5 size-4" />
                               Convert
                             </Button>
@@ -368,14 +367,17 @@ export function ConverterQueue() {
                       </div>
                     </div>
 
-                    {item.status === 'converting' && (
-                      <div className="w-full">
-                        <Progress value={Math.round(item.progress * 100)} />
-                        <p className="mt-1 text-right text-xs text-muted-foreground">
-                          {Math.round(item.progress * 100)}%
-                        </p>
-                      </div>
-                    )}
+                    <div
+                      className={cn(
+                        'absolute bottom-0 left-0 right-0 h-1 overflow-hidden bg-muted transition-opacity',
+                        item.status === 'converting' ? 'opacity-100' : 'opacity-0'
+                      )}
+                    >
+                      <div
+                        className="h-full bg-primary transition-all duration-200"
+                        style={{ width: `${Math.round(item.progress * 100)}%` }}
+                      />
+                    </div>
 
                     {item.status === 'error' && item.error && (
                       <p className="w-full text-sm text-destructive">{item.error}</p>
@@ -420,7 +422,7 @@ export function ConverterQueue() {
               })}
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-2">
               <p className="text-sm text-muted-foreground">
                 {items.length} file{items.length === 1 ? '' : 's'} added
               </p>
