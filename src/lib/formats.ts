@@ -13,8 +13,6 @@ export type ImageFormat =
   | 'pam'
   | 'pfm'
   | 'sgi'
-  | 'sun'
-  | 'ras'
   | 'dpx'
 
 export interface ImageOutputDef {
@@ -41,8 +39,6 @@ export const IMAGE_OUTPUTS: ImageOutputDef[] = [
   { value: 'pam', label: 'PAM', ext: 'pam', mime: 'image/x-portable-arbitrarymap', engine: 'ffmpeg' },
   { value: 'pfm', label: 'PFM', ext: 'pfm', mime: 'image/x-portable-floatmap', engine: 'ffmpeg' },
   { value: 'sgi', label: 'SGI', ext: 'sgi', mime: 'image/sgi', engine: 'ffmpeg' },
-  { value: 'sun', label: 'SUN', ext: 'sun', mime: 'image/x-sun-raster', engine: 'ffmpeg' },
-  { value: 'ras', label: 'RAS', ext: 'ras', mime: 'image/x-sun-raster', engine: 'ffmpeg' },
   { value: 'dpx', label: 'DPX', ext: 'dpx', mime: 'image/x-dpx', engine: 'ffmpeg' },
 ]
 

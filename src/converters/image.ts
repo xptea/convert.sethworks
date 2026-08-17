@@ -85,9 +85,6 @@ async function convertImageFfmpeg(file: File, options: ImageOptions): Promise<Bl
       pam: 'pam',
       pfm: 'pfm',
       sgi: 'sgi',
-      sun: 'sunras',
-      ras: 'sunras',
-      iff: 'iff',
       dpx: 'dpx',
     }
     const codec = codecMap[def.value]
