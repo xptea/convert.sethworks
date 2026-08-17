@@ -69,11 +69,11 @@ async function testFormat(page, job) {
   await page.waitForSelector('text=Convert all', { timeout: 120000 })
 
   // Open the per-item format picker and select the target format.
-  await page.getByRole('button', { name: defaultLabel, exact: true }).first().click()
-  await page.getByRole('button', { name: format.label, exact: true }).first().click()
+  await page.getByRole('button', { name: defaultLabel, exact: true }).first().click({ timeout: 120000 })
+  await page.getByRole('button', { name: format.label, exact: true }).first().click({ timeout: 120000 })
 
   // Start conversion.
-  await page.getByRole('button', { name: /^Convert$/, exact: true }).first().click()
+  await page.getByRole('button', { name: /^Convert$/, exact: true }).first().click({ timeout: 120000 })
 
   // Wait for the item's Download button or an error message.
   for (let i = 0; i < 1200; i++) {

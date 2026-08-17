@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, type DragEvent, type ChangeEvent } from 'react'
+import { useState, useRef, useCallback, useEffect, type DragEvent, type ChangeEvent } from 'react'
 import { cn } from '@/lib/utils'
 import { Image, Video, Music, Upload } from 'lucide-react'
 
@@ -48,6 +48,32 @@ export function FileDropzone({ onFiles }: FileDropzoneProps) {
     },
     [handleFiles]
   )
+
+  useEffect(() => {
+    const onWindowDragOver = (e: globalThis.DragEvent) => {
+      e.preventDefault()
+      setIsDragging(true)
+    }
+    const onWindowDragLeave = (e: globalThis.DragEvent) => {
+      if (e.relatedTarget === null) {
+        setIsDragging(false)
+      }
+    }
+    const onWindowDrop = (e: globalThis.DragEvent) => {
+      e.preventDefault()
+      setIsDragging(false)
+      handleFiles(e.dataTransfer?.files ?? null)
+    }
+
+    window.addEventListener('dragover', onWindowDragOver as EventListener)
+    window.addEventListener('dragleave', onWindowDragLeave as EventListener)
+    window.addEventListener('drop', onWindowDrop as EventListener)
+    return () => {
+      window.removeEventListener('dragover', onWindowDragOver as EventListener)
+      window.removeEventListener('dragleave', onWindowDragLeave as EventListener)
+      window.removeEventListener('drop', onWindowDrop as EventListener)
+    }
+  }, [handleFiles])
 
   return (
     <div

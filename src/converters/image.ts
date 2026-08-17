@@ -71,6 +71,27 @@ async function convertImageFfmpeg(file: File, options: ImageOptions): Promise<Bl
     args.push('-c:v', 'png')
   } else if (def.value === 'bmp') {
     args.push('-c:v', 'bmp')
+  } else {
+    const codecMap: Record<string, string> = {
+      tiff: 'tiff',
+      gif: 'gif',
+      tga: 'targa',
+      ico: 'ico',
+      ppm: 'ppm',
+      pgm: 'pgm',
+      pbm: 'pbm',
+      xpm: 'xpm',
+      xbm: 'xbm',
+      pam: 'pam',
+      pfm: 'pfm',
+      sgi: 'sgi',
+      sun: 'sunras',
+      ras: 'sunras',
+      iff: 'iff',
+      dpx: 'dpx',
+    }
+    const codec = codecMap[def.value]
+    if (codec) args.push('-c:v', codec)
   }
 
   args.push(outputName)

@@ -77,11 +77,11 @@ function x264Aac(quality: number) {
 }
 
 function x265Aac(quality: number) {
-  const crf = Math.max(18, 35 - (quality - 1) * 4)
+  const crf = Math.max(18, 40 - (quality - 1) * 4)
   return [
     '-c:v', 'libx265',
     '-crf', String(crf),
-    '-preset', 'veryfast',
+    '-preset', 'ultrafast',
     '-c:a', 'aac',
     '-movflags', '+faststart',
     '-tag:v', 'hvc1',
@@ -94,7 +94,7 @@ function vp9Opus(quality: number) {
     '-c:v', 'libvpx-vp9',
     '-crf', String(crf),
     '-b:v', '0',
-    '-cpu-used', '6',
+    '-cpu-used', '8',
     '-row-mt', '1',
     '-c:a', 'libopus',
   ]
@@ -144,7 +144,7 @@ export const AUDIO_OUTPUTS: VideoOutputDef[] = [
   { value: 'caf', label: 'CAF', ext: 'caf', mime: 'audio/x-caf', args: () => ['-vn', '-c:a', 'flac'] },
   { value: 'm4a', label: 'M4A', ext: 'm4a', mime: 'audio/mp4', args: () => ['-vn', '-c:a', 'aac'] },
   { value: 'm4b', label: 'M4B', ext: 'm4b', mime: 'audio/mp4', args: () => ['-vn', '-c:a', 'aac'] },
-  { value: 'weba', label: 'WebM Audio', ext: 'weba', mime: 'audio/webm', args: () => ['-vn', '-c:a', 'libopus'] },
+  { value: 'weba', label: 'WebM Audio', ext: 'weba', mime: 'audio/webm', args: () => ['-vn', '-c:a', 'libopus', '-f', 'webm'] },
   { value: 'wma', label: 'WMA', ext: 'wma', mime: 'audio/x-ms-wma', args: () => ['-vn', '-c:a', 'wmav2'] },
   { value: 'voc', label: 'VOC', ext: 'voc', mime: 'audio/x-voc', args: () => ['-vn', '-c:a', 'pcm_s16le'] },
   { value: 'oga', label: 'OGA', ext: 'oga', mime: 'audio/ogg', args: () => ['-vn', '-c:a', 'libvorbis'] },
