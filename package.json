@@ -7,7 +7,7 @@
     "copy:ffmpeg": "node scripts/copy-ffmpeg.js",
     "postinstall": "node scripts/copy-ffmpeg.js",
     "dev": "vite",
-    "build": "tsc -b && node scripts/copy-ffmpeg.js && vite build",
+    "build": "tsc -b && node scripts/copy-ffmpeg.js && vite build && node scripts/gzip-wasm.js",
     "test": "node scripts/e2e-smoke.js",
     "lint": "oxlint",
     "preview": "vite preview"
