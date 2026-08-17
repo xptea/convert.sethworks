@@ -93,11 +93,37 @@ export function getFFmpeg(): FFmpegType | null {
   return ffmpeg
 }
 
+export function resetFFmpeg() {
+  try {
+    ffmpeg?.terminate()
+  } catch {
+    // The worker may already be terminated after a fatal WASM error.
+  }
+  ffmpeg = null
+  loaded = false
+  loading = false
+  execRunning = false
+  lastExecLog = []
+  const error = new Error('FFmpeg was restarted after a fatal conversion error.')
+  for (const job of execQueue.splice(0)) job.reject(error)
+}
+
 interface ExecJob {
+  kind: 'exec' | 'ffprobe'
   args: string[]
-  onProgress?: (p: number) => void
-  resolve: (code: number) => void
+  onProgress?: (event: FFmpegProgress) => void
+  resolve: (result: ExecResult) => void
   reject: (err: unknown) => void
+}
+
+interface ExecResult {
+  code: number
+  logLines: string[]
+}
+
+export interface FFmpegProgress {
+  progress: number
+  time: number
 }
 
 let execQueue: ExecJob[] = []
@@ -114,17 +140,22 @@ async function runNextExec() {
       logLines.push(message)
       if (logLines.length > 30) logLines.shift()
     }
-    const handler = job.onProgress
-      ? ({ progress }: { progress: number; time: number }) => {
-          job.onProgress?.(Math.max(0, Math.min(1, progress)))
+    const handler = job.kind === 'exec' && job.onProgress
+      ? ({ progress, time }: FFmpegProgress) => {
+          job.onProgress?.({
+            progress: Math.max(0, Math.min(1, progress)),
+            time: Math.max(0, time),
+          })
         }
       : null
     ffmpeg.on('log', logHandler)
     if (handler) ffmpeg.on('progress', handler)
     try {
-      const code = await ffmpeg.exec(job.args)
+      const code = job.kind === 'exec'
+        ? await ffmpeg.exec(job.args)
+        : await ffmpeg.ffprobe(job.args)
       lastExecLog = logLines
-      job.resolve(code)
+      job.resolve({ code, logLines })
     } finally {
       ffmpeg.off('log', logHandler)
       if (handler) ffmpeg.off('progress', handler)
@@ -138,12 +169,56 @@ async function runNextExec() {
   }
 }
 
-export async function execFFmpeg(args: string[], onProgress?: (p: number) => void): Promise<number> {
+async function queueFFmpeg(
+  kind: 'exec' | 'ffprobe',
+  args: string[],
+  onProgress?: (event: FFmpegProgress) => void
+): Promise<ExecResult> {
   await initFFmpeg()
   return new Promise((resolve, reject) => {
-    execQueue.push({ args, onProgress, resolve, reject })
+    execQueue.push({ kind, args, onProgress, resolve, reject })
     runNextExec()
   })
+}
+
+export async function execFFmpeg(
+  args: string[],
+  onProgress?: (event: FFmpegProgress) => void
+): Promise<number> {
+  return (await queueFFmpeg('exec', args, onProgress)).code
+}
+
+export async function getMediaDuration(inputName: string): Promise<number | undefined> {
+  const instance = await initFFmpeg()
+  const outputName = `duration.${Math.random().toString(36).slice(2, 10)}.txt`
+
+  try {
+    const { code, logLines } = await queueFFmpeg('ffprobe', [
+      '-v', 'error',
+      '-show_entries', 'format=duration',
+      '-of', 'default=noprint_wrappers=1:nokey=1',
+      inputName,
+      '-o', outputName,
+    ])
+    if (code !== 0) return undefined
+
+    const data = await instance.readFile(outputName)
+    const text = typeof data === 'string' ? data : new TextDecoder().decode(data as Uint8Array)
+    const durationFromFile = Number.parseFloat(text.trim())
+    const durationFromLog = Number.parseFloat(logLines
+      .map((line) => line.trim())
+      .find((line) => /^\d+(?:\.\d+)?$/.test(line)) ?? '')
+    const duration = Number.isFinite(durationFromFile) ? durationFromFile : durationFromLog
+    return Number.isFinite(duration) && duration > 0 ? duration : undefined
+  } catch {
+    return undefined
+  } finally {
+    try {
+      await instance.deleteFile(outputName)
+    } catch {
+      // Ignore a missing ffprobe output file.
+    }
+  }
 }
 
 export function isFFmpegLoaded(): boolean {

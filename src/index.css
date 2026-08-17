@@ -64,3 +64,19 @@ body {
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
 }
+
+@keyframes indeterminate-progress {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(300%); }
+}
+
+.animate-indeterminate-progress {
+  animation: indeterminate-progress 1.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-indeterminate-progress {
+    animation: none;
+    transform: translateX(100%);
+  }
+}

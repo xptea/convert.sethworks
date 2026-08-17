@@ -1,5 +1,6 @@
 import { findImageDef, getImageFormatExt, type ImageFormat } from '@/lib/formats'
 import { initFFmpeg, execFFmpeg, getLastFFmpegError } from './ffmpeg'
+import { createProgressReporter, type ConversionProgressCallback } from './progress'
 
 export type { ImageFormat }
 
@@ -10,7 +11,12 @@ export interface ImageOptions {
 
 export { downloadBlob } from '@/lib/download'
 
-async function convertImageCanvas(file: File, options: ImageOptions): Promise<Blob> {
+async function convertImageCanvas(
+  file: File,
+  options: ImageOptions,
+  onProgress?: ConversionProgressCallback
+): Promise<Blob> {
+  onProgress?.(null, 'Decoding image')
   const bitmap = await createImageBitmap(file)
 
   const { width, height } = bitmap
@@ -20,6 +26,7 @@ async function convertImageCanvas(file: File, options: ImageOptions): Promise<Bl
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error('Could not create canvas context')
 
+  onProgress?.(null, 'Rendering image')
   ctx.drawImage(bitmap, 0, 0)
   bitmap.close()
 
@@ -27,6 +34,7 @@ async function convertImageCanvas(file: File, options: ImageOptions): Promise<Bl
   const mime = def?.mime ?? `image/${options.format}`
   const quality = mime === 'image/png' ? undefined : Math.max(0.01, Math.min(1, options.quality))
 
+  onProgress?.(null, 'Encoding image')
   return new Promise((resolve, reject) => {
     canvas.toBlob(
       (blob) => {
@@ -34,6 +42,7 @@ async function convertImageCanvas(file: File, options: ImageOptions): Promise<Bl
           reject(new Error(`Canvas toBlob returned null for ${mime}`))
           return
         }
+        onProgress?.(null, 'Preparing download')
         resolve(blob)
       },
       mime,
@@ -125,13 +134,18 @@ async function rasterizeSvg(file: File, maxDimension: number, fillMaxDimension =
   }
 }
 
-async function convertImageFfmpeg(file: File, options: ImageOptions): Promise<Blob> {
+async function convertImageFfmpeg(
+  file: File,
+  options: ImageOptions,
+  onProgress?: ConversionProgressCallback
+): Promise<Blob> {
   const def = findImageDef(options.format)
   if (!def) throw new Error(`Unsupported image format: ${options.format}`)
 
   // This FFmpeg WASM build can identify SVG streams but does not include an SVG
   // decoder. Let the browser render the vector first, then encode those PNG pixels.
   const svgInput = isSvgFile(file)
+  onProgress?.(null, svgInput ? 'Rendering SVG' : 'Preparing image')
   const input = svgInput
     ? await rasterizeSvg(file, def.value === 'ico' ? 256 : 4096, def.value === 'ico')
     : file
@@ -139,7 +153,9 @@ async function convertImageFfmpeg(file: File, options: ImageOptions): Promise<Bl
     ? 'png'
     : getSafeName(file.name).split('.').pop() || 'png'
 
+  onProgress?.(null, 'Loading converter')
   const ffmpeg = await initFFmpeg()
+  onProgress?.(null, 'Copying image into memory')
   const threadCount = Math.max(1, Math.min(4, navigator.hardwareConcurrency || 2))
   const { fetchFile } = await import('@ffmpeg/util')
 
@@ -148,6 +164,7 @@ async function convertImageFfmpeg(file: File, options: ImageOptions): Promise<Bl
   const outputName = `output.${jobId}.${def.ext}`
 
   await ffmpeg.writeFile(inputName, await fetchFile(input))
+  onProgress?.(null, 'Encoding image')
 
   const quality = Math.max(0.01, Math.min(1, options.quality))
   const qscale = Math.round(2 + (1 - quality) * 30) // 2-32 scale for still image codecs
@@ -207,7 +224,9 @@ async function convertImageFfmpeg(file: File, options: ImageOptions): Promise<Bl
     throw new Error(`FFmpeg exited with code ${exitCode}: ${getLastFFmpegError()}`)
   }
 
+  onProgress?.(null, 'Finalizing output')
   const data = await ffmpeg.readFile(outputName)
+  onProgress?.(null, 'Preparing download')
   const buffer = (data as Uint8Array).buffer as ArrayBuffer
   const blob = new Blob([buffer], { type: def.mime })
 
@@ -221,7 +240,13 @@ async function convertImageFfmpeg(file: File, options: ImageOptions): Promise<Bl
   return blob
 }
 
-export async function convertImage(file: File, options: ImageOptions): Promise<Blob> {
+export async function convertImage(
+  file: File,
+  options: ImageOptions,
+  onProgress?: ConversionProgressCallback
+): Promise<Blob> {
+  const report = createProgressReporter(onProgress)
+  report(null, 'Preparing image')
   const def = findImageDef(options.format)
   if (!def) throw new Error(`Unsupported image format: ${options.format}`)
 
@@ -229,18 +254,19 @@ export async function convertImage(file: File, options: ImageOptions): Promise<B
   if (options.format === 'png' && inputExt === 'png' && options.quality >= 0.999) {
     // PNG is lossless, so decoding and encoding it again cannot improve quality.
     // Preserve the original compressed bytes at 100% to avoid needless file growth.
+    report(null, 'Preparing download')
     return file
   }
 
   if (def.engine === 'canvas') {
     try {
-      return await convertImageCanvas(file, options)
+      return await convertImageCanvas(file, options, report)
     } catch {
       // Canvas can only decode PNG/JPEG/WebP/etc. Fallback to ffmpeg for TIFF/ICO/etc.
-      return convertImageFfmpeg(file, options)
+      return convertImageFfmpeg(file, options, report)
     }
   }
-  return convertImageFfmpeg(file, options)
+  return convertImageFfmpeg(file, options, report)
 }
 
 export function makeImageFilename(file: File, format: ImageFormat): string {

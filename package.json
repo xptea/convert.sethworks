@@ -14,6 +14,8 @@
     "test": "node scripts/e2e-smoke.js",
     "test:roundtrip": "node scripts/e2e-roundtrip-formats.js",
     "test:ux": "node scripts/e2e-ux-test.js",
+    "test:gif": "node scripts/e2e-gif-settings-test.js",
+    "test:progress": "node scripts/e2e-progress-test.js",
     "lint": "oxlint",
     "verify:deploy": "node scripts/verify-deploy.js",
     "preview": "vite preview"

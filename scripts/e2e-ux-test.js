@@ -42,6 +42,14 @@ async function run() {
   )
   await page.keyboard.press('Escape')
 
+  const compactFormatButton = page.getByRole('button', { name: 'JPEG', exact: true }).last()
+  const compactFormatBox = await compactFormatButton.boundingBox()
+  assert(compactFormatBox && compactFormatBox.width < 130, `Format button is still oversized at ${compactFormatBox?.width}px`)
+
+  await page.getByRole('button', { name: 'Clear all', exact: true }).click()
+  await page.getByText('Your conversion queue will appear here after you add a file.', { exact: true }).waitFor()
+  assert(await page.getByText('image_test1.png', { exact: true }).count() === 0, 'Clear all did not empty the queue')
+
   await page.goto(baseURL)
 
   await page.locator('input[type="file"]').first().setInputFiles([imagePath, videoPath])

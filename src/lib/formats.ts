@@ -171,7 +171,7 @@ export const VIDEO_OUTPUTS: VideoOutputDef[] = [
     '-c:v', 'flv', '-c:a', 'libmp3lame', '-f', 'swf',
   ]},
   { value: 'gif', label: 'GIF', ext: 'gif', mime: 'image/gif', args: () => [
-    '-vf', 'fps=5,scale=320:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=64[p];[s1][p]paletteuse=dither=bayer',
+    '-vf', "fps=15,scale='min(640,iw)':-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=256:stats_mode=diff[p];[s1][p]paletteuse=dither=sierra2_4a:diff_mode=rectangle",
     '-loop', '0',
   ]},
 ]

@@ -2,7 +2,13 @@ import { useState, useCallback } from 'react'
 import JSZip from 'jszip'
 import { Popover } from '@base-ui/react/popover'
 import { convertImage, makeImageFilename, type ImageFormat } from '@/converters/image'
-import { convertVideo, makeVideoFilename, type VideoFormat } from '@/converters/video'
+import {
+  convertVideo,
+  makeVideoFilename,
+  DEFAULT_GIF_OPTIONS,
+  type GifOptions,
+  type VideoFormat,
+} from '@/converters/video'
 import { downloadBlob } from '@/lib/download'
 import { IMAGE_OUTPUTS, VIDEO_OUTPUTS, AUDIO_OUTPUTS } from '@/lib/formats'
 import { FileDropzone } from './FileDropzone'
@@ -37,7 +43,9 @@ interface QueueItem {
   format: ImageFormat | VideoFormat
   quality: number
   status: Status
-  progress: number
+  progress: number | null
+  progressStage?: string
+  gifOptions: GifOptions
   outputBlob?: Blob
   error?: string
 }
@@ -147,6 +155,114 @@ function QualitySlider({
   )
 }
 
+function GifSettings({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: GifOptions
+  onChange: (updates: Partial<GifOptions>) => void
+  disabled?: boolean
+}) {
+  const selectClass = 'h-8 w-full rounded-lg border border-input bg-background px-2 text-xs text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-50'
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <p className="text-sm font-medium text-foreground">Animated GIF settings</p>
+        <p className="mt-1 text-[11px] leading-4 text-muted-foreground">
+          GIF has no normal bitrate setting. Resolution, FPS, colors, and dithering control quality and file size.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2.5">
+        <label className="space-y-1 text-xs text-muted-foreground">
+          <span>Resolution</span>
+          <select
+            aria-label="GIF resolution"
+            className={selectClass}
+            value={String(value.width)}
+            disabled={disabled}
+            onChange={(event) => onChange({
+              width: event.target.value === 'original' ? 'original' : Number(event.target.value),
+            })}
+          >
+            <option value="original">Original</option>
+            <option value="320">320px wide</option>
+            <option value="480">480px wide</option>
+            <option value="640">640px wide</option>
+            <option value="800">800px wide</option>
+            <option value="960">960px wide</option>
+          </select>
+        </label>
+
+        <label className="space-y-1 text-xs text-muted-foreground">
+          <span>Frame rate</span>
+          <select
+            aria-label="GIF frame rate"
+            className={selectClass}
+            value={value.fps}
+            disabled={disabled}
+            onChange={(event) => onChange({ fps: Number(event.target.value) })}
+          >
+            {[5, 10, 15, 20, 24, 30].map((fps) => (
+              <option key={fps} value={fps}>{fps} FPS</option>
+            ))}
+          </select>
+        </label>
+
+        <label className="space-y-1 text-xs text-muted-foreground">
+          <span>Palette</span>
+          <select
+            aria-label="GIF palette colors"
+            className={selectClass}
+            value={value.colors}
+            disabled={disabled}
+            onChange={(event) => onChange({ colors: Number(event.target.value) })}
+          >
+            {[32, 64, 128, 256].map((colors) => (
+              <option key={colors} value={colors}>{colors} colors</option>
+            ))}
+          </select>
+        </label>
+
+        <label className="space-y-1 text-xs text-muted-foreground">
+          <span>Loop</span>
+          <select
+            aria-label="GIF loop behavior"
+            className={selectClass}
+            value={value.loop ? 'forever' : 'once'}
+            disabled={disabled}
+            onChange={(event) => onChange({ loop: event.target.value === 'forever' })}
+          >
+            <option value="forever">Forever</option>
+            <option value="once">Play once</option>
+          </select>
+        </label>
+      </div>
+
+      <label className="block space-y-1 text-xs text-muted-foreground">
+        <span>Dithering</span>
+        <select
+          aria-label="GIF dithering"
+          className={selectClass}
+          value={value.dither}
+          disabled={disabled}
+          onChange={(event) => onChange({ dither: event.target.value as GifOptions['dither'] })}
+        >
+          <option value="sierra2_4a">Smooth gradients</option>
+          <option value="bayer">Crisp pattern</option>
+          <option value="none">None</option>
+        </select>
+      </label>
+
+      <p className="rounded-lg bg-muted/60 px-2.5 py-2 text-[10px] leading-4 text-muted-foreground">
+        Higher resolution, FPS, and color counts look better but can make GIF files much larger and slower to create.
+      </p>
+    </div>
+  )
+}
+
 export function ConverterQueue() {
   const [items, setItems] = useState<QueueItem[]>([])
   const [contextMenu, setContextMenu] = useState<{ id: string; x: number; y: number } | null>(null)
@@ -163,7 +279,9 @@ export function ConverterQueue() {
       format: defaultFormat(file),
       quality: defaultQuality(detectType(file)),
       status: 'pending',
-      progress: 0,
+      progress: null,
+      progressStage: undefined,
+      gifOptions: { ...DEFAULT_GIF_OPTIONS },
     }))
     setItems((prev) => [...prev, ...newItems])
   }, [])
@@ -172,11 +290,19 @@ export function ConverterQueue() {
     setItems((prev) => prev.filter((i) => i.id !== id))
   }, [])
 
+  const clearAll = useCallback(() => {
+    setItems([])
+    setContextMenu(null)
+    setSettingsId(null)
+    setDownloadMenuOpen(false)
+    setBulkQualityOpen(false)
+  }, [])
+
   const setFormat = useCallback(
     (id: string, format: ImageFormat | VideoFormat) => {
       setItems((prev) =>
         prev.map((i) =>
-          i.id === id ? { ...i, format, status: 'pending', outputBlob: undefined, error: undefined } : i
+          i.id === id ? { ...i, format, status: 'pending', progress: null, progressStage: undefined, outputBlob: undefined, error: undefined } : i
         )
       )
     },
@@ -186,14 +312,14 @@ export function ConverterQueue() {
   const setAllFormats = useCallback((type: FileType, format: ImageFormat | VideoFormat) => {
     setItems((prev) =>
       prev.map((i) =>
-        i.type === type ? { ...i, format, status: 'pending', outputBlob: undefined, error: undefined } : i
+        i.type === type ? { ...i, format, status: 'pending', progress: null, progressStage: undefined, outputBlob: undefined, error: undefined } : i
       )
     )
   }, [])
 
   const setQuality = useCallback((id: string, quality: number) => {
     setItems((prev) =>
-      prev.map((i) => (i.id === id ? { ...i, quality, status: 'pending', outputBlob: undefined, error: undefined } : i))
+      prev.map((i) => (i.id === id ? { ...i, quality, status: 'pending', progress: null, progressStage: undefined, outputBlob: undefined, error: undefined } : i))
     )
   }, [])
 
@@ -203,11 +329,28 @@ export function ConverterQueue() {
         ...item,
         quality,
         status: 'pending',
-        progress: 0,
+        progress: null,
+        progressStage: undefined,
         outputBlob: undefined,
         error: undefined,
       }))
     )
+  }, [])
+
+  const setGifOptions = useCallback((id: string, updates: Partial<GifOptions>) => {
+    setItems((prev) => prev.map((item) => (
+      item.id === id
+        ? {
+            ...item,
+            gifOptions: { ...item.gifOptions, ...updates },
+            status: 'pending',
+            progress: null,
+            progressStage: undefined,
+            outputBlob: undefined,
+            error: undefined,
+          }
+        : item
+    )))
   }, [])
 
   const updateItem = useCallback(
@@ -222,27 +365,43 @@ export function ConverterQueue() {
       const item = items.find((i) => i.id === id)
       if (!item) return
 
-      updateItem(id, { status: 'converting', progress: 0, error: undefined })
+      updateItem(id, {
+        status: 'converting',
+        progress: null,
+        progressStage: 'Preparing',
+        error: undefined,
+      })
 
       try {
         if (item.type === 'image') {
           const blob = await convertImage(item.file, {
             format: item.format as ImageFormat,
             quality: item.quality,
-          })
-          updateItem(id, { status: 'done', progress: 1, outputBlob: blob })
+          }, (progress, stage) => updateItem(id, {
+            progress,
+            progressStage: stage,
+          }))
+          updateItem(id, { status: 'done', progress: 1, progressStage: undefined, outputBlob: blob })
         } else {
           const blob = await convertVideo(
             item.file,
-            { format: item.format as VideoFormat, quality: item.quality },
-            (p) => updateItem(id, { progress: p })
+            {
+              format: item.format as VideoFormat,
+              quality: item.quality,
+              gif: item.gifOptions,
+            },
+            (progress, stage) => updateItem(id, {
+              progress,
+              progressStage: stage,
+            })
           )
-          updateItem(id, { status: 'done', progress: 1, outputBlob: blob })
+          updateItem(id, { status: 'done', progress: 1, progressStage: undefined, outputBlob: blob })
         }
       } catch (e) {
         updateItem(id, {
           status: 'error',
-          progress: 0,
+          progress: null,
+          progressStage: undefined,
           error: e instanceof Error ? e.message : 'Conversion failed',
         })
       }
@@ -309,9 +468,22 @@ export function ConverterQueue() {
         <Card size="sm" className="py-0">
           <CardContent className="space-y-2 p-2">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-2">
-              <p className="text-sm text-muted-foreground">
-                {items.length} file{items.length === 1 ? '' : 's'} added
-              </p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm text-muted-foreground">
+                  {items.length} file{items.length === 1 ? '' : 's'} added
+                </p>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearAll}
+                  disabled={hasConverting}
+                  title={hasConverting ? 'Wait for conversions to finish before clearing the queue' : 'Remove every file from the queue'}
+                >
+                  <Trash2 className="size-3.5" />
+                  Clear all
+                </Button>
+              </div>
               <div className="flex flex-wrap items-center justify-end gap-2">
                 {hasImages && (
                   <FormatPicker
@@ -320,7 +492,6 @@ export function ConverterQueue() {
                     placeholder="Set all images"
                     options={imageFormatOptions}
                     onChange={(v) => setAllFormats('image', v as ImageFormat)}
-                    triggerClassName="w-36"
                   />
                 )}
                 {hasVideos && (
@@ -330,7 +501,6 @@ export function ConverterQueue() {
                     placeholder="Set all videos"
                     options={videoFormatOptions}
                     onChange={(v) => setAllFormats('video', v as VideoFormat)}
-                    triggerClassName="w-36"
                   />
                 )}
                 {hasAudios && (
@@ -340,7 +510,6 @@ export function ConverterQueue() {
                     placeholder="Set all audio"
                     options={audioFormatOptions}
                     onChange={(v) => setAllFormats('audio', v as VideoFormat)}
-                    triggerClassName="w-36"
                   />
                 )}
 
@@ -377,8 +546,12 @@ export function ConverterQueue() {
                 </Popover.Root>
 
                 <Button onClick={convertAll} disabled={!hasPending || hasConverting}>
-                  <Play className="mr-1.5 size-4" />
-                  Convert all
+                  {hasConverting ? (
+                    <Loader2 className="mr-1.5 size-4 animate-spin" />
+                  ) : (
+                    <Play className="mr-1.5 size-4" />
+                  )}
+                  {hasConverting ? 'Converting all' : 'Convert all'}
                 </Button>
                 {doneItems.length === 1 && (
                   <Button variant="secondary" onClick={() => downloadOne(doneItems[0])}>
@@ -465,6 +638,10 @@ export function ConverterQueue() {
                   formatOptions = audioFormatOptions
                   icon = <Music className="size-5" />
                 }
+                const progressPercent = item.progress === null
+                  ? null
+                  : Math.min(100, Math.max(0, Math.round(item.progress * 100)))
+                const isAnimatedGif = item.type === 'video' && item.format === 'gif'
 
                 return (
                   <div
@@ -503,7 +680,6 @@ export function ConverterQueue() {
                           options={formatOptions}
                           onChange={(v) => setFormat(item.id, v as ImageFormat | VideoFormat)}
                           disabled={item.status === 'converting'}
-                          triggerClassName="w-40"
                         />
 
                         <Popover.Root
@@ -526,12 +702,23 @@ export function ConverterQueue() {
                               collisionPadding={8}
                               collisionAvoidance={{ side: 'flip', align: 'shift', fallbackAxisSide: 'none' }}
                             >
-                              <Popover.Popup className="z-50 w-56 rounded-xl border border-border bg-popover p-3 shadow-lg outline-none">
-                                <QualitySlider
-                                  value={item.quality}
-                                  onChange={(q) => setQuality(item.id, q)}
-                                  disabled={item.status === 'converting'}
-                                />
+                              <Popover.Popup className={cn(
+                                'z-50 rounded-xl border border-border bg-popover p-3 shadow-lg outline-none',
+                                isAnimatedGif ? 'w-72' : 'w-56'
+                              )}>
+                                {isAnimatedGif ? (
+                                  <GifSettings
+                                    value={item.gifOptions}
+                                    onChange={(updates) => setGifOptions(item.id, updates)}
+                                    disabled={item.status === 'converting'}
+                                  />
+                                ) : (
+                                  <QualitySlider
+                                    value={item.quality}
+                                    onChange={(q) => setQuality(item.id, q)}
+                                    disabled={item.status === 'converting'}
+                                  />
+                                )}
                               </Popover.Popup>
                             </Popover.Positioner>
                           </Popover.Portal>
@@ -539,17 +726,17 @@ export function ConverterQueue() {
 
                         <div className="flex items-center gap-2">
                           {item.status === 'done' ? (
-                            <Button className="w-36" variant="outline" onClick={() => downloadOne(item)}>
+                            <Button variant="outline" onClick={() => downloadOne(item)}>
                               <Download className="mr-1.5 size-4" />
                               Download
                             </Button>
                           ) : item.status === 'converting' ? (
-                            <Button className="w-36" disabled>
+                            <Button disabled>
                               <Loader2 className="mr-1.5 size-4 animate-spin" />
                               Converting
                             </Button>
                           ) : (
-                            <Button className="w-36" onClick={() => convertOne(item.id)} disabled={hasConverting}>
+                            <Button onClick={() => convertOne(item.id)} disabled={hasConverting}>
                               <Play className="mr-1.5 size-4" />
                               Convert
                             </Button>
@@ -558,17 +745,39 @@ export function ConverterQueue() {
                       </div>
                     </div>
 
-                    <div
-                      className={cn(
-                        'absolute bottom-0 left-0 right-0 h-1 overflow-hidden bg-muted transition-opacity',
-                        item.status === 'converting' ? 'opacity-100' : 'opacity-0'
-                      )}
-                    >
+                    {item.status === 'converting' && (
                       <div
-                        className="h-full bg-primary transition-all duration-200"
-                        style={{ width: `${Math.round(item.progress * 100)}%` }}
-                      />
-                    </div>
+                        role="progressbar"
+                        aria-label={`Conversion progress for ${item.file.name}`}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={progressPercent ?? undefined}
+                        aria-valuetext={progressPercent === null
+                          ? (item.progressStage ?? 'Working')
+                          : `${item.progressStage ?? 'Encoding'}: ${progressPercent}%`}
+                        aria-busy="true"
+                        className="space-y-1.5 pt-1"
+                      >
+                        <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                          <span className="truncate">
+                            {item.progressStage ?? 'Working'}
+                          </span>
+                          <span className="shrink-0 tabular-nums text-foreground">
+                            {progressPercent === null ? 'Working' : `${progressPercent}%`}
+                          </span>
+                        </div>
+                        <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                          {progressPercent === null ? (
+                            <div className="h-full w-1/3 rounded-full bg-primary animate-indeterminate-progress" />
+                          ) : (
+                            <div
+                              className="h-full rounded-full bg-primary transition-[width] duration-200 ease-out"
+                              style={{ width: `${progressPercent}%` }}
+                            />
+                          )}
+                        </div>
+                      </div>
+                    )}
 
                     {item.status === 'error' && item.error && (
                       <p className="w-full text-sm text-destructive">{item.error}</p>
