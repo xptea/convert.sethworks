@@ -12,7 +12,7 @@ import { Slider } from '@/components/ui/slider'
 import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { ContextMenu, ContextMenuItem } from '@/components/ui/context-menu'
-import { Image, Video, Music, Download, Play, Loader2, FileArchive, ArrowRight, Settings2, Trash2 } from 'lucide-react'
+import { Image, Video, Music, Download, Play, Loader2, FileArchive, Settings2, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type FileType = 'image' | 'video' | 'audio'
@@ -86,11 +86,12 @@ function SizeComparison({ original, converted }: { original: number; converted: 
   const smaller = converted <= original
 
   return (
-    <span className="inline-flex items-center gap-1 text-xs">
-      <span className="text-muted-foreground">{formatBytes(original)}</span>
-      <ArrowRight className="size-3 text-muted-foreground" />
+    <span
+      className="inline-flex items-center gap-1 whitespace-nowrap text-xs"
+      title={`Original: ${formatBytes(original)}`}
+    >
+      <span className="text-muted-foreground">{formatBytes(converted)}</span>
       <span className={cn(smaller ? 'text-emerald-400' : 'text-red-400')}>
-        {formatBytes(converted)}{' '}
         ({smaller ? '-' : '+'}{Math.abs(percent)}%)
       </span>
     </span>
@@ -297,11 +298,11 @@ export function ConverterQueue() {
                           <p className="truncate text-sm font-medium text-foreground" title={item.file.name}>
                             {item.file.name}
                           </p>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="truncate leading-5 text-xs text-muted-foreground">
                             {item.status === 'done' && item.outputBlob ? (
                               <SizeComparison original={item.file.size} converted={item.outputBlob.size} />
                             ) : (
-                              <span>{formatBytes(item.file.size)}</span>
+                              <span className="whitespace-nowrap">{formatBytes(item.file.size)}</span>
                             )}
                           </p>
                         </div>
