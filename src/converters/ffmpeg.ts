@@ -19,6 +19,28 @@ function reportProgress(
   }
 }
 
+function isGzip(buffer: ArrayBuffer) {
+  const u8 = new Uint8Array(buffer)
+  return u8.length > 2 && u8[0] === 0x1f && u8[1] === 0x8b
+}
+
+async function gunzip(buffer: ArrayBuffer) {
+  const ds = new DecompressionStream('gzip')
+  const writer = ds.writable.getWriter()
+  writer.write(new Uint8Array(buffer))
+  writer.close()
+  return await new Response(ds.readable).arrayBuffer()
+}
+
+async function toWasmURL(url: string) {
+  const res = await fetch(url)
+  let data = await res.arrayBuffer()
+  if (isGzip(data)) {
+    data = await gunzip(data)
+  }
+  return URL.createObjectURL(new Blob([data], { type: 'application/wasm' }))
+}
+
 export async function initFFmpeg(
   onProgress?: (p: number) => void
 ): Promise<FFmpegType> {
@@ -46,14 +68,9 @@ export async function initFFmpeg(
       true,
       reportProgress(onProgress, 0, 0.15)
     )
-    const wasmURL = await toBlobURL(
-      `${base}${WASM_PATH}`,
-      'application/wasm',
-      true,
-      reportProgress(onProgress, 0.15, 0.7)
-    )
-
+    const wasmURL = await toWasmURL(`${base}${WASM_PATH}`)
     onProgress?.(0.85)
+
     await ffmpeg.load({ coreURL, wasmURL })
     loaded = true
     onProgress?.(1)
