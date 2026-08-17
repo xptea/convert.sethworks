@@ -217,9 +217,7 @@ export function ConverterQueue() {
   const convertAll = useCallback(async () => {
     const pending = items.filter((i) => i.status === 'pending')
     if (pending.length === 0) return
-    for (const item of pending) {
-      await convertOne(item.id)
-    }
+    await Promise.all(pending.map((item) => convertOne(item.id)))
   }, [items, convertOne])
 
   const downloadOne = useCallback((item: QueueItem) => {

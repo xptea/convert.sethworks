@@ -1,5 +1,5 @@
 import { findImageDef, getImageFormatExt, type ImageFormat } from '@/lib/formats'
-import { initFFmpeg } from './ffmpeg'
+import { initFFmpeg, execFFmpeg } from './ffmpeg'
 
 export type { ImageFormat }
 
@@ -53,8 +53,9 @@ async function convertImageFfmpeg(file: File, options: ImageOptions): Promise<Bl
   const def = findImageDef(options.format)
   if (!def) throw new Error(`Unsupported image format: ${options.format}`)
 
-  const inputName = `input.${getSafeName(file.name).split('.').pop() || 'png'}`
-  const outputName = `output.${def.ext}`
+  const jobId = Math.random().toString(36).slice(2, 10)
+  const inputName = `input.${jobId}.${getSafeName(file.name).split('.').pop() || 'png'}`
+  const outputName = `output.${jobId}.${def.ext}`
 
   await ffmpeg.writeFile(inputName, await fetchFile(file))
 
@@ -76,11 +77,9 @@ async function convertImageFfmpeg(file: File, options: ImageOptions): Promise<Bl
       tiff: 'tiff',
       gif: 'gif',
       tga: 'targa',
-      ico: 'ico',
       ppm: 'ppm',
       pgm: 'pgm',
       pbm: 'pbm',
-      xpm: 'xpm',
       xbm: 'xbm',
       pam: 'pam',
       pfm: 'pfm',
@@ -93,7 +92,7 @@ async function convertImageFfmpeg(file: File, options: ImageOptions): Promise<Bl
 
   args.push(outputName)
 
-  const exitCode = await ffmpeg.exec(args)
+  const exitCode = await execFFmpeg(args)
   if (exitCode !== 0) {
     throw new Error(`FFmpeg exited with code ${exitCode}`)
   }

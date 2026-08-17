@@ -84,6 +84,49 @@ export function getFFmpeg(): FFmpegType | null {
   return ffmpeg
 }
 
+interface ExecJob {
+  args: string[]
+  onProgress?: (p: number) => void
+  resolve: (code: number) => void
+  reject: (err: unknown) => void
+}
+
+let execQueue: ExecJob[] = []
+let execRunning = false
+
+async function runNextExec() {
+  if (execRunning || execQueue.length === 0 || !ffmpeg) return
+  execRunning = true
+  const job = execQueue.shift()!
+  try {
+    const handler = job.onProgress
+      ? ({ progress }: { progress: number; time: number }) => {
+          job.onProgress?.(Math.max(0, Math.min(1, progress)))
+        }
+      : null
+    if (handler) ffmpeg.on('progress', handler)
+    try {
+      const code = await ffmpeg.exec(job.args)
+      job.resolve(code)
+    } finally {
+      if (handler) ffmpeg.off('progress', handler)
+    }
+  } catch (err) {
+    job.reject(err)
+  } finally {
+    execRunning = false
+    runNextExec()
+  }
+}
+
+export async function execFFmpeg(args: string[], onProgress?: (p: number) => void): Promise<number> {
+  await initFFmpeg()
+  return new Promise((resolve, reject) => {
+    execQueue.push({ args, onProgress, resolve, reject })
+    runNextExec()
+  })
+}
+
 export function isFFmpegLoaded(): boolean {
   return loaded
 }

@@ -1,5 +1,5 @@
 import { findVideoDef, getVideoFormatExt, getVideoFormatMime, type VideoFormat } from '@/lib/formats'
-import { initFFmpeg } from './ffmpeg'
+import { initFFmpeg, execFFmpeg } from './ffmpeg'
 
 export type { VideoFormat }
 
@@ -28,15 +28,10 @@ export async function convertVideo(
   if (!profile) throw new Error(`Unsupported video format: ${options.format}`)
 
   const { fetchFile } = await import('@ffmpeg/util')
-  const inputName = `input.${getSafeName(file.name).split('.').pop() || 'mp4'}`
+  const jobId = Math.random().toString(36).slice(2, 10)
+  const inputName = `input.${jobId}.${getSafeName(file.name).split('.').pop() || 'mp4'}`
   const ext = getVideoFormatExt(options.format)
-  const outputName = `output.${ext}`
-
-  ffmpeg.off('progress', () => {})
-  const progressHandler = ({ progress }: { progress: number; time: number }) => {
-    onProgress?.(Math.max(0, Math.min(1, progress)))
-  }
-  ffmpeg.on('progress', progressHandler)
+  const outputName = `output.${jobId}.${ext}`
 
   try {
     await ffmpeg.writeFile(inputName, await fetchFile(file))
@@ -44,7 +39,7 @@ export async function convertVideo(
     // Fast path: same-codec remuxing for compatible containers (e.g. MP4 → MOV).
     if (profile.copyable) {
       const copyArgs = ['-i', inputName, '-c', 'copy', '-movflags', '+faststart', '-y', outputName]
-      const copyCode = await ffmpeg.exec(copyArgs)
+      const copyCode = await execFFmpeg(copyArgs, onProgress)
       if (copyCode === 0) {
         const data = await ffmpeg.readFile(outputName)
         const mime = getVideoFormatMime(options.format)
@@ -66,7 +61,7 @@ export async function convertVideo(
 
     const args = ['-i', inputName, '-y', ...profile.args(qualityToLevel(options.quality)), outputName]
 
-    const exitCode = await ffmpeg.exec(args)
+    const exitCode = await execFFmpeg(args, onProgress)
     if (exitCode !== 0) {
       throw new Error(`FFmpeg exited with code ${exitCode}`)
     }
@@ -85,7 +80,7 @@ export async function convertVideo(
 
     return blob
   } finally {
-    ffmpeg.off('progress', progressHandler)
+    onProgress?.(0)
   }
 }
 
