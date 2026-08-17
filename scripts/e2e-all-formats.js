@@ -6,6 +6,13 @@ const baseURL = process.env.BASE_URL || 'http://localhost:4173'
 const imageName = process.env.IMAGE || 'image_test1.png'
 const videoName = process.env.VIDEO || 'video_test1.mp4'
 const limit = Number(process.env.LIMIT) || 0
+const concurrency = Number(process.env.CONCURRENCY) || (process.env.FAST ? 6 : 3)
+
+const FAST_IMAGE = ['PNG', 'JPEG', 'WebP', 'BMP']
+const FAST_VIDEO = [
+  'MP4 (H.264)', 'MOV', 'M4V', 'MKV', 'AVI', 'FLV', '3GP',
+  'MP3', 'WAV', 'FLAC', 'AAC', 'Opus', 'M4A',
+]
 
 function findFile(name) {
   const candidates = [resolve(name), resolve('public', name), resolve('tests', name)]
@@ -50,7 +57,9 @@ const videoPath = findFile(videoName)
 if (!imagePath) throw new Error(`Image test file not found: ${imageName}`)
 if (!videoPath) throw new Error(`Video test file not found: ${videoName}`)
 
-async function testFormat(page, file, defaultLabel, format) {
+async function testFormat(page, job) {
+  const { file, defaultLabel, format } = job
+
   await page.goto(baseURL)
   await page.waitForSelector('text=Drop files here or click to browse', { timeout: 120000 })
 
@@ -93,40 +102,61 @@ async function testFormat(page, file, defaultLabel, format) {
   }
 }
 
-async function runType(page, file, defaultLabel, formats, typeName) {
-  const list = limit ? formats.slice(0, limit) : formats
-  const results = []
-  for (const format of list) {
-    try {
-      await testFormat(page, file, defaultLabel, format)
-      console.log(`[PASS] ${typeName} -> ${format.label}`)
-      results.push({ label: format.label, ok: true })
-    } catch (e) {
-      console.error(`[FAIL] ${typeName} -> ${format.label}:`, e.message)
-      results.push({ label: format.label, ok: false, error: e.message })
-    }
-  }
-  return results
-}
-
 async function run() {
   const browser = await chromium.launch({ headless: true })
   const context = await browser.newContext({ acceptDownloads: true })
-  const page = await context.newPage()
 
-  page.on('console', (msg) => console.log('PAGE CONSOLE:', msg.type(), msg.text()))
-  page.on('pageerror', (err) => console.error('PAGE ERROR:', err.message))
+  const selectedImage = process.env.FAST
+    ? imageFormats.filter((f) => FAST_IMAGE.includes(f.label))
+    : imageFormats
+  const selectedVideo = process.env.FAST
+    ? videoFormats.filter((f) => FAST_VIDEO.includes(f.label))
+    : videoFormats
+
+  const queue = []
+  for (const format of limit ? selectedImage.slice(0, limit) : selectedImage) {
+    queue.push({ type: 'image', file: imagePath, defaultLabel: imageDefault, format })
+  }
+  for (const format of limit ? selectedVideo.slice(0, limit) : selectedVideo) {
+    queue.push({ type: 'video', file: videoPath, defaultLabel: videoDefault, format })
+  }
+
+  const results = []
+  const workers = Math.min(queue.length, Number(process.env.CONCURRENCY) || queue.length)
+
+  async function worker() {
+    const page = await context.newPage()
+    page.on('console', (msg) => console.log('PAGE CONSOLE:', msg.type(), msg.text()))
+    page.on('pageerror', (err) => console.error('PAGE ERROR:', err.message))
+
+    while (queue.length > 0) {
+      const job = queue.shift()
+      if (!job) continue
+      try {
+        await testFormat(page, job)
+        console.log(`[PASS] ${job.type} -> ${job.format.label}`)
+        results.push({ type: job.type, label: job.format.label, ok: true })
+      } catch (e) {
+        console.error(`[FAIL] ${job.type} -> ${job.format.label}:`, e.message)
+        results.push({ type: job.type, label: job.format.label, ok: false, error: e.message })
+      }
+    }
+
+    await page.close()
+  }
 
   console.log('Opening', baseURL)
   console.log('Image:', imagePath)
   console.log('Video:', videoPath)
+  console.log(`Running with ${workers} parallel workers`)
   if (limit) console.log(`Limit set to ${limit} formats per type`)
 
-  const imageResults = await runType(page, imagePath, imageDefault, imageFormats, 'image')
-  const videoResults = await runType(page, videoPath, videoDefault, videoFormats, 'video')
+  await Promise.all(Array.from({ length: workers }).map(() => worker()))
 
-  const failures = [...imageResults, ...videoResults].filter((r) => !r.ok)
-  const total = imageResults.length + videoResults.length
+  const imageResults = results.filter((r) => r.type === 'image')
+  const videoResults = results.filter((r) => r.type === 'video')
+  const failures = results.filter((r) => !r.ok)
+  const total = results.length
   const passed = total - failures.length
 
   console.log('\n---')
@@ -134,7 +164,7 @@ async function run() {
   if (failures.length > 0) {
     console.log('Failures:')
     for (const f of failures) {
-      console.log(`  - ${f.label}: ${f.error}`)
+      console.log(`  - ${f.type} ${f.label}: ${f.error}`)
     }
   }
 
