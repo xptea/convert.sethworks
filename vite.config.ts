@@ -28,8 +28,8 @@ const wasmGzipPreview = {
   name: 'wasm-gzip-preview',
   configurePreviewServer(server: any) {
     server.middlewares.use((req: any, res: any, next: any) => {
-      if (req.url === '/ffmpeg/ffmpeg-core.wasm') {
-        const wasmPath = resolve(__dirname, 'dist/ffmpeg/ffmpeg-core.wasm')
+      if (req.url === '/ffmpeg/ffmpeg-core.wasm' || req.url === '/ffmpeg/single/ffmpeg-core.wasm') {
+        const wasmPath = resolve(__dirname, `dist${req.url}`)
         if (isGzipped(wasmPath)) {
           res.setHeader('Content-Encoding', 'gzip')
         }

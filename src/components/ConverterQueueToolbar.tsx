@@ -2,7 +2,7 @@ import { Popover } from '@base-ui/react/popover'
 import type { ImageFormat } from '@/converters/image'
 import type { VideoFormat } from '@/converters/video'
 import { FormatPicker } from './FormatPicker'
-import { QualitySlider } from './ConverterQueueSettings'
+import { MetadataSetting, QualitySlider } from './ConverterQueueSettings'
 import { Button } from '@/components/ui/button'
 import {
   ChevronDown,
@@ -34,6 +34,7 @@ interface ConverterQueueToolbarProps {
   videoFormatOptions: FormatOption[]
   audioFormatOptions: FormatOption[]
   bulkQuality: number
+  bulkStripMetadata: boolean
   bulkQualityOpen: boolean
   downloadMenuOpen: boolean
   doneItems: QueueItem[]
@@ -41,7 +42,8 @@ interface ConverterQueueToolbarProps {
   onSetAllFormats: (type: FileType, format: ImageFormat | VideoFormat) => void
   onSetBulkQualityOpen: (open: boolean) => void
   onSetBulkQuality: (quality: number) => void
-  onSetAllQuality: (quality: number) => void
+  onSetBulkStripMetadata: (stripMetadata: boolean) => void
+  onSetAllConversionSettings: (quality: number, stripMetadata: boolean) => void
   onConvertAll: () => void | Promise<void>
   onDownloadOne: (item: QueueItem) => void
   onDownloadAsZip: () => void | Promise<void>
@@ -59,6 +61,7 @@ export function ConverterQueueToolbar({
   videoFormatOptions,
   audioFormatOptions,
   bulkQuality,
+  bulkStripMetadata,
   bulkQualityOpen,
   downloadMenuOpen,
   doneItems,
@@ -66,7 +69,8 @@ export function ConverterQueueToolbar({
   onSetAllFormats,
   onSetBulkQualityOpen,
   onSetBulkQuality,
-  onSetAllQuality,
+  onSetBulkStripMetadata,
+  onSetAllConversionSettings,
   onConvertAll,
   onDownloadOne,
   onDownloadAsZip,
@@ -123,8 +127,8 @@ export function ConverterQueueToolbar({
 
         <Popover.Root open={bulkQualityOpen} onOpenChange={onSetBulkQualityOpen}>
           <Popover.Trigger
-            aria-label="Set all quality"
-            title="Set all quality"
+            aria-label="Set all conversion settings"
+            title="Set all conversion settings"
             disabled={hasConverting}
             className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-input bg-background text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
           >
@@ -138,12 +142,21 @@ export function ConverterQueueToolbar({
               collisionPadding={8}
               collisionAvoidance={{ side: 'flip', align: 'shift', fallbackAxisSide: 'none' }}
             >
-              <Popover.Popup className="z-50 w-64 space-y-3 rounded-xl border border-border bg-popover p-3 shadow-lg outline-none">
+              <Popover.Popup className="z-50 w-72 space-y-3 rounded-xl border border-border bg-popover p-3 shadow-lg outline-none">
+                <div className="text-left">
+                  <p className="text-sm font-semibold text-foreground">Conversion settings</p>
+                  <p className="mt-0.5 text-[10px] text-muted-foreground">Apply these defaults to every file.</p>
+                </div>
                 <QualitySlider value={bulkQuality} onChange={onSetBulkQuality} disabled={hasConverting} />
+                <MetadataSetting
+                  checked={bulkStripMetadata}
+                  onChange={onSetBulkStripMetadata}
+                  disabled={hasConverting}
+                />
                 <Button
                   className="w-full"
                   onClick={() => {
-                    onSetAllQuality(bulkQuality)
+                    onSetAllConversionSettings(bulkQuality, bulkStripMetadata)
                     onSetBulkQualityOpen(false)
                   }}
                 >

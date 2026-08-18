@@ -22,6 +22,12 @@ async function run() {
   await page.getByRole('button', { name: 'WebM (VP8)', exact: true }).first().click()
   await page.getByRole('button', { name: 'Convert', exact: true }).first().click()
 
+  await page.getByText(/Encoding media/).waitFor({ state: 'visible', timeout: 120_000 })
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click()
+  await page.getByRole('button', { name: 'Convert', exact: true }).waitFor({ state: 'visible' })
+  assert(await page.getByRole('button', { name: 'Download', exact: true }).count() === 0, 'Cancelled conversion produced a download')
+  await page.getByRole('button', { name: 'Convert', exact: true }).click()
+
   const progress = page.getByRole('progressbar', { name: `Conversion progress for video_test1.mp4` })
   await progress.waitFor({ state: 'visible', timeout: 120_000 })
 

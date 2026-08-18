@@ -31,11 +31,14 @@ const requiredFiles = [
   'robots.txt',
   'sitemap.xml',
   'site.webmanifest',
+  'sw.js',
   '_headers',
   '_redirects',
   'ffmpeg/ffmpeg-core.js',
   'ffmpeg/ffmpeg-core.wasm',
   'ffmpeg/ffmpeg-core.worker.js',
+  'ffmpeg/single/ffmpeg-core.js',
+  'ffmpeg/single/ffmpeg-core.wasm',
 ]
 requiredFiles.forEach(read)
 
@@ -47,6 +50,8 @@ for (const relativePath of files) {
 
 const wasm = read('ffmpeg/ffmpeg-core.wasm')
 assert(wasm[0] === 0x1f && wasm[1] === 0x8b, 'FFmpeg WASM is not gzip-compressed')
+const singleWasm = read('ffmpeg/single/ffmpeg-core.wasm')
+assert(singleWasm[0] === 0x1f && singleWasm[1] === 0x8b, 'Single-thread FFmpeg WASM is not gzip-compressed')
 
 for (const page of ['index.html', 'about/index.html']) {
   const html = read(page).toString('utf8')

@@ -1,8 +1,10 @@
 import type { FFmpeg as FFmpegType } from '@ffmpeg/ffmpeg'
 
-const CORE_PATH = '/ffmpeg/ffmpeg-core.js'
-const WASM_PATH = '/ffmpeg/ffmpeg-core.wasm'
-const WORKER_PATH = '/ffmpeg/ffmpeg-core.worker.js'
+const MULTI_CORE_PATH = '/ffmpeg/ffmpeg-core.js'
+const MULTI_WASM_PATH = '/ffmpeg/ffmpeg-core.wasm'
+const MULTI_WORKER_PATH = '/ffmpeg/ffmpeg-core.worker.js'
+const SINGLE_CORE_PATH = '/ffmpeg/single/ffmpeg-core.js'
+const SINGLE_WASM_PATH = '/ffmpeg/single/ffmpeg-core.wasm'
 
 let ffmpeg: FFmpegType | null = null
 let loading = false
@@ -49,11 +51,6 @@ export async function initFFmpeg(
   onProgress?: (p: number) => void
 ): Promise<FFmpegType> {
   if (loaded && ffmpeg) return ffmpeg
-  if (!globalThis.crossOriginIsolated || typeof SharedArrayBuffer === 'undefined') {
-    throw new Error(
-      'Multithreaded FFmpeg requires cross-origin isolation (COOP/COEP headers) and SharedArrayBuffer support.'
-    )
-  }
   if (loading) {
     while (loading) {
       await new Promise((r) => setTimeout(r, 50))
@@ -70,22 +67,25 @@ export async function initFFmpeg(
 
     ffmpeg = new FFmpeg()
     const base = location.origin
+    const multithreaded = supportsMultithreadedFFmpeg()
+    const corePath = multithreaded ? MULTI_CORE_PATH : SINGLE_CORE_PATH
+    const wasmPath = multithreaded ? MULTI_WASM_PATH : SINGLE_WASM_PATH
 
     const [coreURL, wasmBlob, workerURL] = await Promise.all([
       toBlobURL(
-        `${base}${CORE_PATH}`,
+        `${base}${corePath}`,
         'text/javascript',
         true,
         reportProgress(onProgress, 0, 0.15)
       ),
-      toWasmBlob(`${base}${WASM_PATH}`),
-      toBlobURL(`${base}${WORKER_PATH}`, 'text/javascript'),
+      toWasmBlob(`${base}${wasmPath}`),
+      multithreaded ? toBlobURL(`${base}${MULTI_WORKER_PATH}`, 'text/javascript') : Promise.resolve(undefined),
     ])
     const wasmURL = URL.createObjectURL(wasmBlob)
     onProgress?.(0.85)
 
     try {
-      await ffmpeg.load({ coreURL, wasmURL, workerURL })
+      await ffmpeg.load({ coreURL, wasmURL, ...(workerURL ? { workerURL } : {}) })
     } finally {
       setTimeout(() => URL.revokeObjectURL(wasmURL), 0)
     }
@@ -110,6 +110,10 @@ export function resetFFmpeg() {
   lastExecLog = []
   const error = new Error('FFmpeg was restarted after a fatal conversion error.')
   for (const job of execQueue.splice(0)) job.reject(error)
+}
+
+export function supportsMultithreadedFFmpeg() {
+  return globalThis.crossOriginIsolated && typeof SharedArrayBuffer !== 'undefined'
 }
 
 interface ExecJob {

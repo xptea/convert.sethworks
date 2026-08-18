@@ -1,6 +1,6 @@
 # Local Convert
 
-Local Convert is a private image, video, and audio converter that runs entirely in the browser. Common image conversions use Canvas, while specialist image formats, video, and audio use the multithreaded FFmpeg WebAssembly core. Selected media is not uploaded to a conversion server.
+Local Convert is a private image, video, and audio converter that runs entirely in the browser. Common image conversions use Canvas, while specialist image formats, video, and audio use FFmpeg WebAssembly. Browsers with cross-origin isolation use the faster multithreaded core; restricted browsers automatically fall back to a single-thread core. Selected media is not uploaded to a conversion server. A production service worker caches the application and both FFmpeg cores so conversions remain available offline after the first successful load.
 
 ## Local development
 

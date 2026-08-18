@@ -1,6 +1,34 @@
 import type { GifOptions } from '@/converters/video'
 import { Slider } from '@/components/ui/slider'
 
+export function MetadataSetting({
+  checked,
+  onChange,
+  disabled,
+}: {
+  checked: boolean
+  onChange: (checked: boolean) => void
+  disabled?: boolean
+}) {
+  return (
+    <label className="flex cursor-pointer items-start gap-2.5 rounded-lg bg-muted/60 px-3 py-2.5 text-left">
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.checked)}
+        className="mt-0.5 size-4 accent-primary"
+      />
+      <span>
+        <span className="block text-xs font-medium text-foreground">Remove metadata</span>
+        <span className="mt-0.5 block text-[10px] leading-4 text-muted-foreground">
+          Removes embedded author, device, comment, and location information where supported.
+        </span>
+      </span>
+    </label>
+  )
+}
+
 export function QualitySlider({
   value,
   onChange,

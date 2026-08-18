@@ -134,7 +134,7 @@ export function AboutPage() {
               </div>
             </div>
             <p>
-              WebAssembly is a portable binary format that browsers can execute at near-native speed inside their security sandbox. The multithreaded FFmpeg build uses <code className="rounded bg-secondary px-1.5 py-0.5 text-xs text-foreground">SharedArrayBuffer</code> and browser workers. The app caps codec work at four threads to balance speed, memory use, and stability instead of consuming every logical CPU core.
+              WebAssembly is a portable binary format that browsers can execute at near-native speed inside their security sandbox. When available, the multithreaded FFmpeg build uses <code className="rounded bg-secondary px-1.5 py-0.5 text-xs text-foreground">SharedArrayBuffer</code> and browser workers, capped at four threads. Browsers and embedded previews that do not expose those features automatically use a compatible single-thread core instead.
             </p>
             <p>
               Cross-origin isolation headers (COOP and COEP) allow that shared-memory setup. They are security headers delivered with the static page, not evidence of a conversion backend.
@@ -161,7 +161,7 @@ export function AboutPage() {
               ))}
             </div>
             <p>
-              The FFmpeg engine is roughly 10 MB after gzip compression and is fetched from the site only when a job needs it. You can confirm the separation yourself in browser developer tools: the Network panel shows application assets, while the input file is handled through the local File API rather than an upload request.
+              Each FFmpeg core is roughly 10 MB after gzip compression. A service worker downloads and caches both compatibility variants with the application after your first visit so the converter can keep working offline. You can confirm the separation yourself in browser developer tools: the Network panel shows application assets, while the input file is handled through the local File API rather than an upload request.
             </p>
             <p>
               This privacy boundary describes the converter’s own code. A browser extension, compromised device, operating-system backup tool, or file-sync folder has its own access rules and sits outside what a webpage can control.
@@ -174,7 +174,7 @@ export function AboutPage() {
             </p>
             <ul className="space-y-2">
               {[
-                'The first FFmpeg conversion includes one-time engine startup and download work.',
+                'The first FFmpeg conversion includes one-time engine startup and may wait for the offline cache to finish downloading.',
                 'Higher resolutions and longer durations require more CPU time and browser memory.',
                 'Modern codecs generally compress better, but their encoders do more computation.',
                 'FFmpeg jobs share a controlled execution queue to avoid several large WASM jobs exhausting memory at once.',
@@ -193,7 +193,7 @@ export function AboutPage() {
               “100%” controls encoder quality where that format supports a quality setting; it does not mean “reuse the original compressed bytes.” Two encoders can represent the same pixels with different filters, metadata, color profiles, and compression decisions, producing different file sizes without a visible change.
             </p>
             <p>
-              PNG is lossless, so a quality percentage does not improve its pixels. When a PNG is converted to PNG at 100%, this site now preserves the original bytes instead of needlessly decoding and re-encoding them. Other same-format conversions may still need a new encode when you request a different quality or codec profile.
+              PNG is lossless, so a quality percentage does not improve its pixels. A PNG converted to PNG at 100% can preserve its original bytes when metadata removal is turned off. Removing metadata requires a fresh encode. Other same-format conversions may also need a new encode when you request a different quality or codec profile.
             </p>
             <p>
               Lossy formats such as JPEG, WebP, MP3, H.264, and H.265 trade some information for smaller files. Lossless and fixed-profile formats may ignore the queue’s quality setting because their codec rules are different.
@@ -207,7 +207,7 @@ export function AboutPage() {
                 ['Why does Cloudflare appear in the connection?', 'Cloudflare Pages hosts the static website and codec assets. It delivers the tool; it does not perform the media conversion.'],
                 ['Does the site keep a copy?', 'The app has no media database or account storage. The working copy exists in the page’s memory and temporary WASM filesystem for the current session. Your downloaded result remains on your device.'],
                 ['Can I inspect this behavior?', 'Yes. Open your browser’s Network panel, convert a file, and watch the requests. You will see site assets and the FFmpeg engine when needed, not an upload containing your media.'],
-                ['Why is the first conversion slower?', 'The browser may need to download, decompress, initialize, and compile the FFmpeg WebAssembly engine before the first specialist image, audio, or video job. Later jobs reuse it.'],
+                ['Why is the first conversion slower?', 'The browser may need to finish caching, decompress, initialize, and compile the FFmpeg WebAssembly engine before the first specialist image, audio, or video job. Later jobs reuse it.'],
                 ['Will it work on a phone?', 'Often, yes, but available memory and sustained CPU performance are lower on many phones. Small images and clips are a better fit than large lossless video jobs.'],
               ].map(([question, answer]) => (
                 <details key={question} className="group p-4 open:bg-secondary/20">

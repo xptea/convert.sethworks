@@ -1,22 +1,24 @@
+import { useState } from 'react'
 import { Popover } from '@base-ui/react/popover'
 import { FormatPicker } from './FormatPicker'
-import { GifSettings, QualitySlider } from './ConverterQueueSettings'
+import { GifSettings, MetadataSetting, QualitySlider } from './ConverterQueueSettings'
+import { MediaPreviewDialog } from './MediaPreview'
 import { Button } from '@/components/ui/button'
 import { ContextMenu, ContextMenuItem } from '@/components/ui/context-menu'
 import {
+  Check,
+  Copy,
   Download,
-  Image,
-  Loader2,
-  Music,
   Play,
   Settings2,
   Trash2,
-  Video,
+  X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ImageFormat } from '@/converters/image'
 import type { GifOptions, VideoFormat } from '@/converters/video'
 import type { ContextMenuState, FormatOption, QueueItem } from './converter-queue-types'
+import { copyImageBlob } from '@/lib/download'
 
 interface ConverterQueueItemProps {
   item: QueueItem
@@ -27,8 +29,10 @@ interface ConverterQueueItemProps {
   onContextMenu: (id: string, x: number, y: number) => void
   onSetFormat: (id: string, format: ImageFormat | VideoFormat) => void
   onSetQuality: (id: string, quality: number) => void
+  onSetStripMetadata: (id: string, stripMetadata: boolean) => void
   onSetGifOptions: (id: string, updates: Partial<GifOptions>) => void
   onConvert: (id: string) => void | Promise<void>
+  onCancel: (id: string) => void
   onDownload: (item: QueueItem) => void
   onRemove: (id: string) => void
   onSetSettingsId: (id: string | null) => void
@@ -60,6 +64,13 @@ function SizeComparison({ original, converted }: { original: number; converted: 
   )
 }
 
+function formatDuration(seconds?: number) {
+  if (!seconds) return undefined
+  const minutes = Math.floor(seconds / 60)
+  const remainder = Math.round(seconds % 60)
+  return `${minutes}:${String(remainder).padStart(2, '0')}`
+}
+
 export function ConverterQueueItem({
   item,
   formatOptions,
@@ -69,22 +80,37 @@ export function ConverterQueueItem({
   onContextMenu,
   onSetFormat,
   onSetQuality,
+  onSetStripMetadata,
   onSetGifOptions,
   onConvert,
+  onCancel,
   onDownload,
   onRemove,
   onSetSettingsId,
   onCloseContextMenu,
 }: ConverterQueueItemProps) {
+  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle')
   const progressPercent = item.progress === null
     ? null
     : Math.min(100, Math.max(0, Math.round(item.progress * 100)))
   const isAnimatedGif = item.type === 'video' && item.format === 'gif'
-  const icon = item.type === 'image'
-    ? <Image className="size-5" />
-    : item.type === 'video'
-      ? <Video className="size-5" />
-      : <Music className="size-5" />
+  const detailParts = [
+    formatBytes(item.file.size),
+    item.mediaInfo?.width && item.mediaInfo.height ? `${item.mediaInfo.width}×${item.mediaInfo.height}` : undefined,
+    formatDuration(item.mediaInfo?.duration),
+  ].filter(Boolean)
+
+  async function copyOutput() {
+    if (!item.outputBlob) return
+    try {
+      await copyImageBlob(item.outputBlob)
+      setCopyState('copied')
+      window.setTimeout(() => setCopyState('idle'), 1800)
+    } catch {
+      setCopyState('error')
+      window.setTimeout(() => setCopyState('idle'), 2500)
+    }
+  }
 
   return (
     <div
@@ -100,8 +126,13 @@ export function ConverterQueueItem({
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">
-          <div data-testid="file-type-icon" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary text-foreground">
-            {icon}
+          <div data-testid="file-type-icon" className="shrink-0 text-foreground">
+            <MediaPreviewDialog
+              source={item.file}
+              output={item.outputBlob}
+              type={item.type}
+              fileName={item.file.name}
+            />
           </div>
           <div data-testid="file-details" className="min-w-0 text-left">
             <p className="truncate text-left text-sm font-medium text-foreground" title={item.file.name}>
@@ -109,9 +140,14 @@ export function ConverterQueueItem({
             </p>
             <p className="w-full truncate text-left text-xs leading-5 text-muted-foreground">
               {item.status === 'done' && item.outputBlob ? (
-                <SizeComparison original={item.file.size} converted={item.outputBlob.size} />
+                <span className="inline-flex max-w-full items-center gap-1.5">
+                  <SizeComparison original={item.file.size} converted={item.outputBlob.size} />
+                  {detailParts.slice(1).length > 0 && (
+                    <span className="truncate whitespace-nowrap">· {detailParts.slice(1).join(' · ')}</span>
+                  )}
+                </span>
               ) : (
-                <span className="whitespace-nowrap">{formatBytes(item.file.size)}</span>
+                <span className="whitespace-nowrap">{detailParts.join(' · ')}</span>
               )}
             </p>
           </div>
@@ -131,7 +167,7 @@ export function ConverterQueueItem({
             onOpenChange={(open) => onSetSettingsId(open ? item.id : null)}
           >
             <Popover.Trigger
-              aria-label={`Output settings for ${item.file.name}`}
+              aria-label={`Conversion settings for ${item.file.name}`}
               disabled={item.status === 'converting'}
               className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-input bg-background text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -147,22 +183,33 @@ export function ConverterQueueItem({
                 collisionAvoidance={{ side: 'flip', align: 'shift', fallbackAxisSide: 'none' }}
               >
                 <Popover.Popup className={cn(
-                  'z-50 rounded-xl border border-border bg-popover p-3 shadow-lg outline-none',
-                  isAnimatedGif ? 'w-72' : 'w-56'
+                  'z-50 max-h-[calc(100vh-2rem)] overflow-y-auto rounded-xl border border-border bg-popover p-3 shadow-lg outline-none',
+                  'w-80 space-y-4'
                 )}>
-                  {isAnimatedGif ? (
+                  <div className="text-left">
+                    <p className="text-sm font-semibold text-foreground">Conversion settings</p>
+                    <p className="mt-0.5 text-[10px] text-muted-foreground">Quality, privacy, and format-specific controls.</p>
+                  </div>
+
+                  <QualitySlider
+                    value={item.quality}
+                    onChange={(quality) => onSetQuality(item.id, quality)}
+                    disabled={item.status === 'converting'}
+                  />
+
+                  {isAnimatedGif && (
                     <GifSettings
                       value={item.gifOptions}
                       onChange={(updates) => onSetGifOptions(item.id, updates)}
                       disabled={item.status === 'converting'}
                     />
-                  ) : (
-                    <QualitySlider
-                      value={item.quality}
-                      onChange={(quality) => onSetQuality(item.id, quality)}
-                      disabled={item.status === 'converting'}
-                    />
                   )}
+
+                  <MetadataSetting
+                    checked={item.stripMetadata}
+                    onChange={(checked) => onSetStripMetadata(item.id, checked)}
+                    disabled={item.status === 'converting'}
+                  />
                 </Popover.Popup>
               </Popover.Positioner>
             </Popover.Portal>
@@ -170,14 +217,27 @@ export function ConverterQueueItem({
 
           <div className="flex items-center gap-2">
             {item.status === 'done' ? (
-              <Button variant="outline" onClick={() => onDownload(item)}>
-                <Download className="mr-1.5 size-4" />
-                Download
-              </Button>
+              <>
+                {item.type === 'image' && (
+                  <Button
+                    variant="outline"
+                    onClick={() => void copyOutput()}
+                    aria-label={`Copy converted ${item.file.name}`}
+                    title={copyState === 'error' ? 'This browser could not copy the image' : 'Copy converted image'}
+                  >
+                    {copyState === 'copied' ? <Check className="size-4" /> : <Copy className="size-4" />}
+                    <span className="sr-only">{copyState === 'copied' ? 'Copied' : 'Copy'}</span>
+                  </Button>
+                )}
+                <Button variant="outline" onClick={() => onDownload(item)}>
+                  <Download className="mr-1.5 size-4" />
+                  Download
+                </Button>
+              </>
             ) : item.status === 'converting' ? (
-              <Button disabled>
-                <Loader2 className="mr-1.5 size-4 animate-spin" />
-                Converting
+              <Button variant="outline" onClick={() => onCancel(item.id)}>
+                <X className="mr-1.5 size-4" />
+                Cancel
               </Button>
             ) : (
               <Button onClick={() => onConvert(item.id)} disabled={hasConverting}>
@@ -237,9 +297,9 @@ export function ConverterQueueItem({
             Download
           </ContextMenuItem>
         ) : item.status === 'converting' ? (
-          <ContextMenuItem onClick={() => { }} disabled>
-            <Loader2 className="size-4" />
-            Converting
+          <ContextMenuItem onClick={() => { onCancel(item.id); onCloseContextMenu() }}>
+            <X className="size-4" />
+            Cancel conversion
           </ContextMenuItem>
         ) : (
           <ContextMenuItem onClick={() => { onConvert(item.id); onCloseContextMenu() }}>
@@ -249,7 +309,7 @@ export function ConverterQueueItem({
         )}
         <ContextMenuItem onClick={() => { onSetSettingsId(item.id); onCloseContextMenu() }}>
           <Settings2 className="size-4" />
-          Output settings
+          Conversion settings
         </ContextMenuItem>
         <ContextMenuItem
           onClick={() => { onRemove(item.id); onCloseContextMenu() }}

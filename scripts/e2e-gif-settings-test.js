@@ -27,7 +27,7 @@ async function run() {
 
     await page.getByRole('button', { name: 'MP4 (H.264)', exact: true }).first().click()
     await page.getByRole('button', { name: 'GIF', exact: true }).first().click()
-    await page.getByRole('button', { name: 'Output settings for video_test1.mp4', exact: true }).click()
+    await page.getByRole('button', { name: 'Conversion settings for video_test1.mp4', exact: true }).click()
 
     const resolution = page.getByRole('combobox', { name: 'GIF resolution' })
     const frameRate = page.getByRole('combobox', { name: 'GIF frame rate' })
@@ -80,6 +80,24 @@ async function run() {
       await page.waitForTimeout(50)
     }
     await downloadButton.waitFor({ state: 'visible', timeout: 120_000 })
+    const queueItemText = await page.getByTestId('queue-item').first().innerText()
+    assert(/\d+×\d+.*\d+:\d+/.test(queueItemText), `Completed media details disappeared: ${queueItemText}`)
+
+    await page.getByRole('button', { name: 'Open preview for video_test1.mp4', exact: true }).click()
+    const previewDialog = page.getByRole('dialog')
+    const originalVideo = previewDialog.locator('video[aria-label^="Original"]')
+    await originalVideo.waitFor({ state: 'visible' })
+    await page.waitForTimeout(500)
+    assert(
+      await originalVideo.evaluate((video) => !video.paused && video.currentTime > 0),
+      'Original video did not autoplay when the preview opened'
+    )
+    const convertedImage = previewDialog.locator('img[alt^="Converted"]')
+    await convertedImage.waitFor({ state: 'visible' })
+    const previewMime = await convertedImage.evaluate(async (image) => (await fetch(image.src)).headers.get('content-type'))
+    assert(previewMime === 'image/png', `GIF preview is not frozen to its first frame: ${previewMime}`)
+    await page.getByRole('button', { name: 'Close preview', exact: true }).click()
+
     assert(
       progressSamples.some((sample) => sample.value === null),
       `GIF conversion did not show indeterminate work honestly: ${JSON.stringify(progressSamples)}`
@@ -112,7 +130,7 @@ async function run() {
 
     // Editing a completed GIF must create a fresh pending job, and the reused
     // FFmpeg worker must not leak the previous job's final 100% event into it.
-    await page.getByRole('button', { name: 'Output settings for video_test1.mp4', exact: true }).click()
+    await page.getByRole('button', { name: 'Conversion settings for video_test1.mp4', exact: true }).click()
     await resolution.selectOption('480')
     await frameRate.selectOption('10')
     await colors.selectOption('128')

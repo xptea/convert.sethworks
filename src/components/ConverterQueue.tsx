@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import JSZip from 'jszip'
 import { convertImage, makeImageFilename, type ImageFormat } from '@/converters/image'
 import {
@@ -16,6 +16,8 @@ import { ConverterQueueItem } from './ConverterQueueItem'
 import { ConverterQueueToolbar } from './ConverterQueueToolbar'
 import type { ContextMenuState, FileType, QueueItem } from './converter-queue-types'
 import { getSupportedFileType } from '@/lib/file-support'
+import { inspectMediaFile } from '@/lib/media-info'
+import { resetFFmpeg } from '@/converters/ffmpeg'
 
 function detectType(file: File): FileType {
   const type = getSupportedFileType(file)
@@ -56,17 +58,21 @@ export function ConverterQueue() {
   const [downloadMenuOpen, setDownloadMenuOpen] = useState(false)
   const [bulkQualityOpen, setBulkQualityOpen] = useState(false)
   const [bulkQuality, setBulkQuality] = useState(1)
+  const [bulkStripMetadata, setBulkStripMetadata] = useState(true)
+  const conversionControllers = useRef(new Map<string, AbortController>())
 
   const addFiles = useCallback((files: File[]) => {
     const newItems = files.reduce<QueueItem[]>((items, file) => {
       if (!getSupportedFileType(file)) return items
 
+      const type = detectType(file)
       items.push({
         id: crypto.randomUUID(),
         file,
-        type: detectType(file),
+        type,
         format: defaultFormat(file),
-        quality: defaultQuality(detectType(file)),
+        quality: defaultQuality(type),
+        stripMetadata: true,
         status: 'pending',
         progress: null,
         progressStage: undefined,
@@ -75,6 +81,12 @@ export function ConverterQueue() {
       return items
     }, [])
     setItems((prev) => [...prev, ...newItems])
+
+    newItems.forEach((item) => {
+      void inspectMediaFile(item.file, item.type).then((mediaInfo) => {
+        setItems((prev) => prev.map((current) => current.id === item.id ? { ...current, mediaInfo } : current))
+      })
+    })
   }, [])
 
   const removeItem = useCallback((id: string) => {
@@ -114,18 +126,29 @@ export function ConverterQueue() {
     )
   }, [])
 
-  const setAllQuality = useCallback((quality: number) => {
-    setItems((prev) =>
-      prev.map((item) => ({
-        ...item,
-        quality,
-        status: 'pending',
-        progress: null,
-        progressStage: undefined,
-        outputBlob: undefined,
-        error: undefined,
-      }))
-    )
+  const setStripMetadata = useCallback((id: string, stripMetadata: boolean) => {
+    setItems((prev) => prev.map((item) => item.id === id ? {
+      ...item,
+      stripMetadata,
+      status: 'pending',
+      progress: null,
+      progressStage: undefined,
+      outputBlob: undefined,
+      error: undefined,
+    } : item))
+  }, [])
+
+  const setAllConversionSettings = useCallback((quality: number, stripMetadata: boolean) => {
+    setItems((prev) => prev.map((item) => ({
+      ...item,
+      quality,
+      stripMetadata,
+      status: 'pending',
+      progress: null,
+      progressStage: undefined,
+      outputBlob: undefined,
+      error: undefined,
+    })))
   }, [])
 
   const setGifOptions = useCallback((id: string, updates: Partial<GifOptions>) => {
@@ -156,6 +179,9 @@ export function ConverterQueue() {
       const item = items.find((i) => i.id === id)
       if (!item) return
 
+      const controller = new AbortController()
+      conversionControllers.current.set(id, controller)
+
       updateItem(id, {
         status: 'converting',
         progress: null,
@@ -168,10 +194,11 @@ export function ConverterQueue() {
           const blob = await convertImage(item.file, {
             format: item.format as ImageFormat,
             quality: item.quality,
+            stripMetadata: item.stripMetadata,
           }, (progress, stage) => updateItem(id, {
-            progress,
-            progressStage: stage,
+            ...(controller.signal.aborted ? {} : { progress, progressStage: stage }),
           }))
+          if (controller.signal.aborted) return
           updateItem(id, { status: 'done', progress: 1, progressStage: undefined, outputBlob: blob })
         } else {
           const blob = await convertVideo(
@@ -179,31 +206,46 @@ export function ConverterQueue() {
             {
               format: item.format as VideoFormat,
               quality: item.quality,
+              stripMetadata: item.stripMetadata,
               gif: item.gifOptions,
             },
             (progress, stage) => updateItem(id, {
-              progress,
-              progressStage: stage,
+              ...(controller.signal.aborted ? {} : { progress, progressStage: stage }),
             })
           )
+          if (controller.signal.aborted) return
           updateItem(id, { status: 'done', progress: 1, progressStage: undefined, outputBlob: blob })
         }
       } catch (e) {
+        if (controller.signal.aborted) {
+          updateItem(id, { status: 'pending', progress: null, progressStage: undefined, error: undefined })
+          return
+        }
         updateItem(id, {
           status: 'error',
           progress: null,
           progressStage: undefined,
           error: e instanceof Error ? e.message : 'Conversion failed',
         })
+      } finally {
+        if (conversionControllers.current.get(id) === controller) {
+          conversionControllers.current.delete(id)
+        }
       }
     },
     [items, updateItem]
   )
 
+  const cancelConversion = useCallback((id: string) => {
+    conversionControllers.current.get(id)?.abort()
+    resetFFmpeg()
+    updateItem(id, { status: 'pending', progress: null, progressStage: undefined, error: undefined })
+  }, [updateItem])
+
   const convertAll = useCallback(async () => {
     const pending = items.filter((i) => i.status === 'pending')
     if (pending.length === 0) return
-    await Promise.all(pending.map((item) => convertOne(item.id)))
+    for (const item of pending) await convertOne(item.id)
   }, [items, convertOne])
 
   const downloadOne = useCallback((item: QueueItem) => {
@@ -247,9 +289,9 @@ export function ConverterQueue() {
   const sharedVideoFormat = sharedFormat(items, 'video')
   const sharedAudioFormat = sharedFormat(items, 'audio')
 
-  const imageFormatOptions = IMAGE_OUTPUTS.map((o) => ({ value: o.value as string, label: o.label }))
-  const videoFormatOptions = [...VIDEO_OUTPUTS, ...AUDIO_OUTPUTS].map((o) => ({ value: o.value, label: o.label }))
-  const audioFormatOptions = AUDIO_OUTPUTS.map((o) => ({ value: o.value, label: o.label }))
+  const imageFormatOptions = IMAGE_OUTPUTS.map((o) => ({ value: o.value as string, label: o.label, popular: o.popular }))
+  const videoFormatOptions = [...VIDEO_OUTPUTS, ...AUDIO_OUTPUTS].map((o) => ({ value: o.value, label: o.label, popular: o.popular }))
+  const audioFormatOptions = AUDIO_OUTPUTS.map((o) => ({ value: o.value, label: o.label, popular: o.popular }))
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-8">
@@ -269,6 +311,7 @@ export function ConverterQueue() {
                 videoFormatOptions={videoFormatOptions}
                 audioFormatOptions={audioFormatOptions}
                 bulkQuality={bulkQuality}
+                bulkStripMetadata={bulkStripMetadata}
                 bulkQualityOpen={bulkQualityOpen}
                 downloadMenuOpen={downloadMenuOpen}
                 doneItems={doneItems}
@@ -276,7 +319,8 @@ export function ConverterQueue() {
                 onSetAllFormats={setAllFormats}
                 onSetBulkQualityOpen={setBulkQualityOpen}
                 onSetBulkQuality={setBulkQuality}
-                onSetAllQuality={setAllQuality}
+                onSetBulkStripMetadata={setBulkStripMetadata}
+                onSetAllConversionSettings={setAllConversionSettings}
                 onConvertAll={convertAll}
                 onDownloadOne={downloadOne}
                 onDownloadAsZip={downloadAsZip}
@@ -301,8 +345,10 @@ export function ConverterQueue() {
                   onContextMenu={(id, x, y) => setContextMenu({ id, x, y })}
                   onSetFormat={setFormat}
                   onSetQuality={setQuality}
+                  onSetStripMetadata={setStripMetadata}
                   onSetGifOptions={setGifOptions}
                   onConvert={convertOne}
+                  onCancel={cancelConversion}
                   onDownload={downloadOne}
                   onRemove={removeItem}
                   onSetSettingsId={setSettingsId}

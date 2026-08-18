@@ -16,6 +16,7 @@ async function run() {
 
   const browser = await chromium.launch({ headless: true })
   const context = await browser.newContext({ acceptDownloads: true, viewport: { width: 1280, height: 900 } })
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new URL(baseURL).origin })
   const page = await context.newPage()
   await page.goto(baseURL)
 
@@ -34,6 +35,7 @@ async function run() {
 
   await fileInput.setInputFiles(imagePath)
   await page.getByText('image_test1.png', { exact: true }).waitFor()
+  await page.getByTestId('file-details').getByText(/\d+×\d+/).waitFor()
   assert(await page.getByTestId('batch-toolbar').count() === 0, 'Batch toolbar is visible for one file')
   assert(await page.getByRole('button', { name: 'Convert all', exact: true }).count() === 0, 'Convert all is visible for one file')
   assert(await page.getByRole('button', { name: 'Convert', exact: true }).count() === 1, 'Single-file Convert button is missing')
@@ -94,6 +96,15 @@ async function run() {
   await page.getByText('Your conversion queue will appear here after you add a file.', { exact: true }).waitFor()
   assert(await page.getByText('image_test1.png', { exact: true }).count() === 0, 'Clear all did not empty the queue')
 
+  await page.evaluate(() => {
+    const transfer = new DataTransfer()
+    transfer.items.add(new File([
+      '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10" fill="red"/></svg>',
+    ], 'pasted-image.svg', { type: 'image/svg+xml' }))
+    window.dispatchEvent(new ClipboardEvent('paste', { clipboardData: transfer }))
+  })
+  await page.getByText('pasted-image.svg', { exact: true }).waitFor()
+
   await page.goto(baseURL)
 
   await page.locator('input[type="file"]').first().setInputFiles([imagePath, videoPath])
@@ -103,8 +114,8 @@ async function run() {
   const firstFileBox = await page.getByText('image_test1.png', { exact: true }).boundingBox()
   assert(toolbarBox && firstFileBox && toolbarBox.y < firstFileBox.y, 'Batch controls are not above the files')
 
-  const setAllQualityButton = page.getByRole('button', { name: 'Set all quality', exact: true })
-  assert((await setAllQualityButton.innerText()).trim() === '', 'Set all quality still has visible text')
+  const setAllQualityButton = page.getByRole('button', { name: 'Set all conversion settings', exact: true })
+  assert((await setAllQualityButton.innerText()).trim() === '', 'Bulk conversion-settings button has visible text')
   const [iconColor, fileNameColor, fileDetailsAlignment] = await Promise.all([
     page.getByTestId('file-type-icon').first().evaluate((element) => getComputedStyle(element).color),
     page.getByText('image_test1.png', { exact: true }).evaluate((element) => getComputedStyle(element).color),
@@ -125,9 +136,10 @@ async function run() {
   await page.getByRole('button', { name: 'Apply to all files', exact: true }).click()
 
   for (const fileName of ['image_test1.png', 'video_test1.mp4']) {
-    await page.getByRole('button', { name: `Output settings for ${fileName}`, exact: true }).click()
+    await page.getByRole('button', { name: `Conversion settings for ${fileName}`, exact: true }).click()
     const value = await page.getByRole('slider', { name: 'Output quality' }).inputValue()
     assert(value === bulkValue, `Set-all quality did not update ${fileName}: ${value}`)
+    assert(await page.getByText('Remove metadata', { exact: true }).count() === 1, `Metadata control is missing for ${fileName}`)
     await page.keyboard.press('Escape')
   }
 
@@ -135,6 +147,16 @@ async function run() {
   const scrollArea = page.getByTestId('format-scroll-area')
   const track = page.getByTestId('format-scroll-track')
   await track.waitFor({ state: 'visible' })
+  assert(await scrollArea.getByText('Popular', { exact: true }).count() === 1, 'Popular format section is missing')
+  assert(await scrollArea.getByRole('separator', { name: 'More formats' }).count() === 1, 'More-formats separator is missing')
+
+  const popularMp4 = await scrollArea.getByRole('button', { name: 'MP4 (H.264)', exact: true }).evaluate(
+    (element) => element.offsetTop
+  )
+  const specialistProRes = await scrollArea.getByRole('button', { name: 'ProRes (MOV)', exact: true }).evaluate(
+    (element) => element.offsetTop
+  )
+  assert(popularMp4 < specialistProRes, 'Popular video formats are not above specialist formats')
 
   const metrics = await scrollArea.evaluate((element) => ({
     clientHeight: element.clientHeight,
@@ -212,13 +234,25 @@ async function run() {
   await page.locator('input[type="file"]').first().setInputFiles(imagePath)
   await page.getByRole('button', { name: 'JPEG', exact: true }).first().click()
   await page.getByRole('button', { name: 'PNG', exact: true }).first().click()
+  await page.getByRole('button', { name: 'Conversion settings for image_test1.png', exact: true }).click()
+  await page.getByText('Remove metadata', { exact: true }).click()
+  await page.keyboard.press('Escape')
   await page.getByRole('button', { name: 'Convert', exact: true }).first().click()
   const downloadButton = page.getByRole('button', { name: 'Download', exact: true }).first()
   await downloadButton.waitFor({ state: 'visible' })
+  await page.getByRole('button', { name: 'Copy converted image_test1.png', exact: true }).click()
+  await page.getByText('Copied', { exact: true }).waitFor()
+  const clipboardTypes = await page.evaluate(async () => (await navigator.clipboard.read())[0]?.types ?? [])
+  assert(clipboardTypes.includes('image/png'), `Clipboard is missing PNG output: ${clipboardTypes.join(', ')}`)
+  await page.getByRole('button', { name: 'Open preview for image_test1.png', exact: true }).click()
+  await page.getByRole('dialog').waitFor()
+  assert(await page.getByText('Original', { exact: true }).count() === 1, 'Original preview is missing from preview modal')
+  assert(await page.getByText('Converted', { exact: true }).count() === 1, 'Converted preview is missing from preview modal')
+  await page.getByRole('button', { name: 'Close preview', exact: true }).click()
   const [download] = await Promise.all([page.waitForEvent('download'), downloadButton.click()])
   const downloadPath = await download.path()
   assert(downloadPath, 'PNG download has no path')
-  assert(readFileSync(downloadPath).equals(readFileSync(imagePath)), '100% PNG output did not preserve original bytes')
+  assert(readFileSync(downloadPath).equals(readFileSync(imagePath)), 'PNG output did not preserve bytes with metadata removal disabled')
 
   const footerLink = page.getByRole('link', { name: 'sethworks.xyz', exact: true })
   assert(await footerLink.getAttribute('href') === 'https://sethworks.xyz', 'Footer link is incorrect')
@@ -263,6 +297,18 @@ async function run() {
   if (process.env.ABOUT_MOBILE_SCREENSHOT) {
     await page.screenshot({ path: resolve(process.env.ABOUT_MOBILE_SCREENSHOT), fullPage: true })
   }
+
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.goto(baseURL)
+  await page.evaluate(async () => { await navigator.serviceWorker.ready })
+  await page.reload()
+  await context.setOffline(true)
+  await page.reload()
+  await page.getByRole('heading', { name: 'Local Convert', exact: true }).waitFor()
+  await page.locator('input[type="file"]').first().setInputFiles(videoPath)
+  await page.getByRole('button', { name: 'Convert', exact: true }).click()
+  await page.getByRole('button', { name: 'Download', exact: true }).waitFor({ state: 'visible', timeout: 120_000 })
+  await context.setOffline(false)
 
   await browser.close()
   console.log('UX regression test passed')

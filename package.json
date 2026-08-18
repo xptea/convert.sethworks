@@ -17,6 +17,7 @@
     "test:gif": "node scripts/e2e-gif-settings-test.js",
     "test:large-image": "node scripts/e2e-large-image-test.js",
     "test:progress": "node scripts/e2e-progress-test.js",
+    "test:fallback": "node scripts/e2e-single-thread-test.js",
     "lint": "oxlint",
     "verify:deploy": "node scripts/verify-deploy.js",
     "preview": "vite preview"
@@ -34,6 +35,7 @@
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
+    "@ffmpeg/core": "^0.12.10",
     "@ffmpeg/core-mt": "^0.12.10",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^24.13.3",

@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils'
 interface FormatOption {
   value: string
   label: string
+  popular?: boolean
 }
 
 interface FormatPickerProps {
@@ -165,6 +166,24 @@ export function FormatPicker({
 
   const selected = options.find((o) => o.value === value)
   const filtered = options.filter((o) => o.label.toLowerCase().includes(query.toLowerCase()))
+  const popularOptions = filtered.filter((o) => o.popular)
+  const moreOptions = filtered.filter((o) => !o.popular)
+
+  function renderOption(option: FormatOption) {
+    return (
+      <Button
+        key={option.value}
+        type="button"
+        aria-pressed={option.value === value}
+        variant={option.value === value ? 'default' : 'secondary'}
+        onClick={() => select(option.value)}
+        className="h-9 min-w-0 w-full truncate px-2 text-xs font-medium transition-colors focus-visible:ring-0"
+        title={option.label}
+      >
+        {option.label}
+      </Button>
+    )
+  }
 
   function select(next: string) {
     onChange(next)
@@ -211,19 +230,27 @@ export function FormatPicker({
             </div>
 
             <FormatScrollArea resetKey={`${open}:${query}:${filtered.length}`}>
-              {filtered.map((o) => (
-                <Button
-                  key={o.value}
-                  type="button"
-                  aria-pressed={o.value === value}
-                  variant={o.value === value ? 'default' : 'secondary'}
-                  onClick={() => select(o.value)}
-                  className="h-9 min-w-0 w-full truncate px-2 text-xs font-medium transition-colors focus-visible:ring-0"
-                  title={o.label}
+              {popularOptions.length > 0 && (
+                <p className="col-span-3 px-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Popular
+                </p>
+              )}
+              {popularOptions.map(renderOption)}
+
+              {moreOptions.length > 0 && (
+                <div
+                  role="separator"
+                  aria-label="More formats"
+                  className="col-span-3 flex items-center gap-2 py-1"
                 >
-                  {o.label}
-                </Button>
-              ))}
+                  <span className="h-px flex-1 bg-border" />
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    More formats
+                  </span>
+                  <span className="h-px flex-1 bg-border" />
+                </div>
+              )}
+              {moreOptions.map(renderOption)}
             </FormatScrollArea>
 
             {filtered.length === 0 && (

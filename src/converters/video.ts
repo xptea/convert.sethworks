@@ -5,6 +5,7 @@ import {
   getLastFFmpegError,
   getMediaDuration,
   resetFFmpeg,
+  supportsMultithreadedFFmpeg,
   type FFmpegProgress,
 } from './ffmpeg'
 import { createProgressReporter, type ConversionProgressCallback } from './progress'
@@ -14,6 +15,7 @@ export type { VideoFormat }
 export interface VideoOptions {
   format: VideoFormat
   quality: number // 0..1, where 0 = small file/high compression, 1 = large file/low compression
+  stripMetadata?: boolean
   gif?: GifOptions
 }
 
@@ -102,7 +104,9 @@ export async function convertVideo(
   report(null, 'Loading converter')
   const ffmpeg = await initFFmpeg()
   report(null, 'Preparing file')
-  const threadCount = Math.max(1, Math.min(4, navigator.hardwareConcurrency || 2))
+  const threadCount = supportsMultithreadedFFmpeg()
+    ? Math.max(1, Math.min(4, navigator.hardwareConcurrency || 2))
+    : 1
 
   const profile = findVideoDef(options.format)
   if (!profile) throw new Error(`Unsupported video format: ${options.format}`)
@@ -150,7 +154,13 @@ export async function convertVideo(
     // Fast path: same-codec remuxing for compatible containers (e.g. MP4 → MOV).
     if (profile.copyable) {
       report(null, 'Trying fast conversion')
-      const copyArgs = ['-i', inputName, '-c', 'copy', '-movflags', '+faststart', '-y', outputName]
+      const copyArgs = [
+        '-i', inputName,
+        '-c', 'copy',
+        '-map_metadata', options.stripMetadata === false ? '0' : '-1',
+        '-movflags', '+faststart',
+        '-y', outputName,
+      ]
       const copyCode = await execFFmpeg(copyArgs)
       if (copyCode === 0) {
         report(null, 'Finalizing output')
@@ -182,6 +192,7 @@ export async function convertVideo(
           '-an',
           '-vf', filter,
           '-loop', gif.loop ? '0' : '-1',
+          '-map_metadata', options.stripMetadata === false ? '0' : '-1',
           '-threads', String(threadCount),
           '-y',
           outputName,
@@ -193,6 +204,7 @@ export async function convertVideo(
           '-y',
           '-threads', String(threadCount),
           ...profile.args(qualityToLevel(options.quality)),
+          '-map_metadata', options.stripMetadata === false ? '0' : '-1',
           outputName,
         ], (event) => trackEncoding(event, 'Encoding media'))
       }

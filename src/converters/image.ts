@@ -7,6 +7,7 @@ export type { ImageFormat }
 export interface ImageOptions {
   format: ImageFormat
   quality: number
+  stripMetadata?: boolean
 }
 
 export { downloadBlob } from '@/lib/download'
@@ -261,6 +262,8 @@ async function convertImageFfmpeg(
       args.push('-q:v', String(qscale))
     }
 
+    args.push('-map_metadata', options.stripMetadata === false ? '0' : '-1')
+
     args.push(outputName)
 
     const exitCode = await execFFmpeg(args)
@@ -320,14 +323,14 @@ export async function convertImage(
   if (!def) throw new Error(`Unsupported image format: ${options.format}`)
 
   const inputExt = file.name.split('.').pop()?.toLowerCase()
-  if (options.format === 'png' && inputExt === 'png' && options.quality >= 0.999) {
+  if (options.format === 'png' && inputExt === 'png' && options.quality >= 0.999 && options.stripMetadata === false) {
     // PNG is lossless, so decoding and encoding it again cannot improve quality.
     // Preserve the original compressed bytes at 100% to avoid needless file growth.
     report(null, 'Preparing download')
     return file
   }
 
-  if (def.engine === 'canvas') {
+  if (def.engine === 'canvas' && options.stripMetadata !== false) {
     try {
       return await convertImageCanvas(file, options, report)
     } catch (error) {

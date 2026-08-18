@@ -85,14 +85,27 @@ export function FileDropzone({ onFiles }: FileDropzoneProps) {
       setIsDragging(false)
       handleFiles(e.dataTransfer?.files ?? null)
     }
+    const onWindowPaste = (event: ClipboardEvent) => {
+      const files = Array.from(event.clipboardData?.items ?? [])
+        .filter((item) => item.kind === 'file')
+        .map((item) => item.getAsFile())
+        .filter((file): file is File => file !== null)
+      if (files.length === 0) return
+      event.preventDefault()
+      const transfer = new DataTransfer()
+      files.forEach((file) => transfer.items.add(file))
+      handleFiles(transfer.files)
+    }
 
     window.addEventListener('dragover', onWindowDragOver as EventListener)
     window.addEventListener('dragleave', onWindowDragLeave as EventListener)
     window.addEventListener('drop', onWindowDrop as EventListener)
+    window.addEventListener('paste', onWindowPaste)
     return () => {
       window.removeEventListener('dragover', onWindowDragOver as EventListener)
       window.removeEventListener('dragleave', onWindowDragLeave as EventListener)
       window.removeEventListener('drop', onWindowDrop as EventListener)
+      window.removeEventListener('paste', onWindowPaste)
     }
   }, [handleFiles])
 
@@ -136,7 +149,7 @@ export function FileDropzone({ onFiles }: FileDropzoneProps) {
           Drop files here or click to browse
         </p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Drop images, videos, and audio in 100+ formats
+          Drop or paste images, videos, and audio in 100+ formats
         </p>
       </div>
 

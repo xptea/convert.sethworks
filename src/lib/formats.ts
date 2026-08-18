@@ -29,17 +29,18 @@ export interface ImageOutputDef {
   label: string
   ext: string
   mime: string
+  popular?: boolean
   /** 'canvas' for fast browser encode, 'ffmpeg' for everything else. */
   engine: 'canvas' | 'ffmpeg'
 }
 
 export const IMAGE_OUTPUTS: ImageOutputDef[] = [
-  { value: 'png', label: 'PNG', ext: 'png', mime: 'image/png', engine: 'canvas' },
-  { value: 'jpg', label: 'JPEG', ext: 'jpg', mime: 'image/jpeg', engine: 'canvas' },
-  { value: 'webp', label: 'WebP', ext: 'webp', mime: 'image/webp', engine: 'canvas' },
+  { value: 'png', label: 'PNG', ext: 'png', mime: 'image/png', popular: true, engine: 'canvas' },
+  { value: 'jpg', label: 'JPEG', ext: 'jpg', mime: 'image/jpeg', popular: true, engine: 'canvas' },
+  { value: 'webp', label: 'WebP', ext: 'webp', mime: 'image/webp', popular: true, engine: 'canvas' },
   { value: 'bmp', label: 'BMP', ext: 'bmp', mime: 'image/bmp', engine: 'ffmpeg' },
-  { value: 'gif', label: 'GIF', ext: 'gif', mime: 'image/gif', engine: 'ffmpeg' },
-  { value: 'tiff', label: 'TIFF', ext: 'tiff', mime: 'image/tiff', engine: 'ffmpeg' },
+  { value: 'gif', label: 'GIF', ext: 'gif', mime: 'image/gif', popular: true, engine: 'ffmpeg' },
+  { value: 'tiff', label: 'TIFF', ext: 'tiff', mime: 'image/tiff', popular: true, engine: 'ffmpeg' },
   { value: 'tga', label: 'TGA', ext: 'tga', mime: 'image/x-targa', engine: 'ffmpeg' },
   { value: 'ppm', label: 'PPM', ext: 'ppm', mime: 'image/x-portable-pixmap', engine: 'ffmpeg' },
   { value: 'pgm', label: 'PGM', ext: 'pgm', mime: 'image/x-portable-graymap', engine: 'ffmpeg' },
@@ -67,6 +68,7 @@ export interface VideoOutputDef {
   label: string
   ext: string
   mime: string
+  popular?: boolean
   /** FFmpeg args placed between input and output name. */
   args: (quality: number) => string[]
   /** Whether this output can be produced by copying input streams (same-codec remux). */
@@ -110,12 +112,12 @@ function theoraVorbis(_quality: number) {
 }
 
 export const VIDEO_OUTPUTS: VideoOutputDef[] = [
-  { value: 'mp4', label: 'MP4 (H.264)', ext: 'mp4', mime: 'video/mp4', args: x264Aac, copyable: true },
-  { value: 'mov', label: 'MOV', ext: 'mov', mime: 'video/quicktime', args: x264Aac, copyable: true },
-  { value: 'm4v', label: 'M4V', ext: 'm4v', mime: 'video/x-m4v', args: x264Aac, copyable: true },
-  { value: 'mkv', label: 'MKV', ext: 'mkv', mime: 'video/x-matroska', args: x264Aac, copyable: true },
-  { value: 'avi', label: 'AVI', ext: 'avi', mime: 'video/x-msvideo', args: x264Aac, copyable: true },
-  { value: 'webm-vp8', label: 'WebM (VP8)', ext: 'webm', mime: 'video/webm', args: vp8Vorbis },
+  { value: 'mp4', label: 'MP4 (H.264)', ext: 'mp4', mime: 'video/mp4', popular: true, args: x264Aac, copyable: true },
+  { value: 'mov', label: 'MOV', ext: 'mov', mime: 'video/quicktime', popular: true, args: x264Aac, copyable: true },
+  { value: 'm4v', label: 'M4V', ext: 'm4v', mime: 'video/x-m4v', popular: true, args: x264Aac, copyable: true },
+  { value: 'mkv', label: 'MKV', ext: 'mkv', mime: 'video/x-matroska', popular: true, args: x264Aac, copyable: true },
+  { value: 'avi', label: 'AVI', ext: 'avi', mime: 'video/x-msvideo', popular: true, args: x264Aac, copyable: true },
+  { value: 'webm-vp8', label: 'WebM (VP8)', ext: 'webm', mime: 'video/webm', popular: true, args: vp8Vorbis },
   { value: 'mp4-hevc', label: 'H.265 (MP4)', ext: 'mp4', mime: 'video/mp4', args: hevcAac },
   { value: 'flv', label: 'FLV', ext: 'flv', mime: 'video/x-flv', args: x264Aac, copyable: true },
   { value: 'ogv', label: 'OGV (Theora)', ext: 'ogv', mime: 'video/ogg', args: theoraVorbis },
@@ -170,25 +172,25 @@ export const VIDEO_OUTPUTS: VideoOutputDef[] = [
   { value: 'swf', label: 'SWF Video', ext: 'swf', mime: 'application/x-shockwave-flash', args: () => [
     '-c:v', 'flv', '-c:a', 'libmp3lame', '-f', 'swf',
   ]},
-  { value: 'gif', label: 'GIF', ext: 'gif', mime: 'image/gif', args: () => [
+  { value: 'gif', label: 'GIF', ext: 'gif', mime: 'image/gif', popular: true, args: () => [
     '-vf', "fps=15,scale='min(640,iw)':-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=256:stats_mode=diff[p];[s1][p]paletteuse=dither=sierra2_4a:diff_mode=rectangle",
     '-loop', '0',
   ]},
 ]
 
 export const AUDIO_OUTPUTS: VideoOutputDef[] = [
-  { value: 'mp3', label: 'MP3', ext: 'mp3', mime: 'audio/mpeg', args: () => ['-vn', '-c:a', 'libmp3lame', '-q:a', '2'] },
-  { value: 'wav', label: 'WAV', ext: 'wav', mime: 'audio/wav', args: () => ['-vn', '-c:a', 'pcm_s16le'] },
-  { value: 'flac', label: 'FLAC', ext: 'flac', mime: 'audio/flac', args: () => ['-vn', '-c:a', 'flac'] },
-  { value: 'ogg', label: 'OGG Vorbis', ext: 'ogg', mime: 'audio/ogg', args: () => ['-vn', '-c:a', 'libvorbis', '-q:a', '4'] },
-  { value: 'opus', label: 'Opus', ext: 'opus', mime: 'audio/opus', args: () => ['-vn', '-c:a', 'libopus', '-b:a', '128k'] },
-  { value: 'aac', label: 'AAC', ext: 'aac', mime: 'audio/aac', args: () => ['-vn', '-c:a', 'aac'] },
+  { value: 'mp3', label: 'MP3', ext: 'mp3', mime: 'audio/mpeg', popular: true, args: () => ['-vn', '-c:a', 'libmp3lame', '-q:a', '2'] },
+  { value: 'wav', label: 'WAV', ext: 'wav', mime: 'audio/wav', popular: true, args: () => ['-vn', '-c:a', 'pcm_s16le'] },
+  { value: 'flac', label: 'FLAC', ext: 'flac', mime: 'audio/flac', popular: true, args: () => ['-vn', '-c:a', 'flac'] },
+  { value: 'ogg', label: 'OGG Vorbis', ext: 'ogg', mime: 'audio/ogg', popular: true, args: () => ['-vn', '-c:a', 'libvorbis', '-q:a', '4'] },
+  { value: 'opus', label: 'Opus', ext: 'opus', mime: 'audio/opus', popular: true, args: () => ['-vn', '-c:a', 'libopus', '-b:a', '128k'] },
+  { value: 'aac', label: 'AAC', ext: 'aac', mime: 'audio/aac', popular: true, args: () => ['-vn', '-c:a', 'aac'] },
   { value: 'ac3', label: 'AC3', ext: 'ac3', mime: 'audio/ac3', args: () => ['-vn', '-c:a', 'ac3'] },
   { value: 'aiff', label: 'AIFF', ext: 'aiff', mime: 'audio/aiff', args: () => ['-vn', '-c:a', 'pcm_s16be'] },
   { value: 'aifc', label: 'AIFC', ext: 'aifc', mime: 'audio/aiff', args: () => ['-vn', '-c:a', 'pcm_s16be'] },
   { value: 'au', label: 'AU', ext: 'au', mime: 'audio/basic', args: () => ['-vn', '-c:a', 'pcm_s16be'] },
   { value: 'caf', label: 'CAF', ext: 'caf', mime: 'audio/x-caf', args: () => ['-vn', '-c:a', 'flac'] },
-  { value: 'm4a', label: 'M4A', ext: 'm4a', mime: 'audio/mp4', args: () => ['-vn', '-c:a', 'aac'] },
+  { value: 'm4a', label: 'M4A', ext: 'm4a', mime: 'audio/mp4', popular: true, args: () => ['-vn', '-c:a', 'aac'] },
   { value: 'm4b', label: 'M4B', ext: 'm4b', mime: 'audio/mp4', args: () => ['-vn', '-c:a', 'aac'] },
   { value: 'weba', label: 'WebM Audio', ext: 'weba', mime: 'audio/webm', args: () => ['-vn', '-c:a', 'libopus', '-f', 'webm'] },
   { value: 'wma', label: 'WMA', ext: 'wma', mime: 'audio/x-ms-wma', args: () => ['-vn', '-c:a', 'wmav2'] },

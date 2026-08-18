@@ -12,14 +12,22 @@ export interface QueueItem {
   type: FileType
   format: ImageFormat | VideoFormat
   quality: number
+  stripMetadata: boolean
   status: Status
   progress: number | null
   progressStage?: string
   gifOptions: GifOptions
+  mediaInfo?: MediaInfo
   outputBlob?: Blob
   error?: string
 }
 
-export type FormatOption = { value: string; label: string }
+export interface MediaInfo {
+  width?: number
+  height?: number
+  duration?: number
+}
+
+export type FormatOption = { value: string; label: string; popular?: boolean }
 
 export type ContextMenuState = { id: string; x: number; y: number }

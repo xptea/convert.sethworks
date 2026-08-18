@@ -12,6 +12,11 @@
       "src": "/favicon.ico",
       "sizes": "256x256",
       "type": "image/x-icon"
+    },
+    {
+      "src": "/logo.webp",
+      "sizes": "800x800",
+      "type": "image/webp"
     }
   ]
 }

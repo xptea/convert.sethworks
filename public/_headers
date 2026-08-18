@@ -12,3 +12,7 @@
 /ffmpeg/ffmpeg-core.wasm
   Content-Encoding: gzip
   Content-Type: application/wasm
+
+/ffmpeg/single/ffmpeg-core.wasm
+  Content-Encoding: gzip
+  Content-Type: application/wasm
