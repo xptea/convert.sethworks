@@ -23,7 +23,6 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
-    "@ffmpeg/core-mt": "^0.12.10",
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2",
     "class-variance-authority": "^0.7.1",
@@ -35,6 +34,7 @@
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
+    "@ffmpeg/core-mt": "^0.12.10",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.17",

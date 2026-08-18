@@ -11,14 +11,15 @@ interface ContextMenuProps {
 
 export function ContextMenu({ open, x, y, onClose, children }: ContextMenuProps) {
   const ref = React.useRef<HTMLDivElement>(null)
+  const onCloseEvent = React.useEffectEvent(onClose)
 
   React.useEffect(() => {
     if (!open) return
     const handleClick = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) onClose()
+      if (!ref.current?.contains(e.target as Node)) onCloseEvent()
     }
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') onCloseEvent()
     }
     document.addEventListener('mousedown', handleClick)
     document.addEventListener('keydown', handleEsc)
@@ -26,7 +27,7 @@ export function ContextMenu({ open, x, y, onClose, children }: ContextMenuProps)
       document.removeEventListener('mousedown', handleClick)
       document.removeEventListener('keydown', handleEsc)
     }
-  }, [open, onClose])
+  }, [open])
 
   if (!open) return null
 

@@ -33,13 +33,16 @@ async function gunzip(buffer: ArrayBuffer) {
   return await new Response(ds.readable).arrayBuffer()
 }
 
-async function toWasmURL(url: string) {
+async function toWasmBlob(url: string) {
   const res = await fetch(url)
+  if (!res.ok) {
+    throw new Error(`Failed to fetch ${url}: ${res.status}`)
+  }
   let data = await res.arrayBuffer()
   if (isGzip(data)) {
     data = await gunzip(data)
   }
-  return URL.createObjectURL(new Blob([data], { type: 'application/wasm' }))
+  return new Blob([data], { type: 'application/wasm' })
 }
 
 export async function initFFmpeg(
@@ -68,19 +71,24 @@ export async function initFFmpeg(
     ffmpeg = new FFmpeg()
     const base = location.origin
 
-    const [coreURL, wasmURL, workerURL] = await Promise.all([
+    const [coreURL, wasmBlob, workerURL] = await Promise.all([
       toBlobURL(
         `${base}${CORE_PATH}`,
         'text/javascript',
         true,
         reportProgress(onProgress, 0, 0.15)
       ),
-      toWasmURL(`${base}${WASM_PATH}`),
+      toWasmBlob(`${base}${WASM_PATH}`),
       toBlobURL(`${base}${WORKER_PATH}`, 'text/javascript'),
     ])
+    const wasmURL = URL.createObjectURL(wasmBlob)
     onProgress?.(0.85)
 
-    await ffmpeg.load({ coreURL, wasmURL, workerURL })
+    try {
+      await ffmpeg.load({ coreURL, wasmURL, workerURL })
+    } finally {
+      setTimeout(() => URL.revokeObjectURL(wasmURL), 0)
+    }
     loaded = true
     onProgress?.(1)
     return ffmpeg
@@ -89,7 +97,7 @@ export async function initFFmpeg(
   }
 }
 
-export function getFFmpeg(): FFmpegType | null {
+function getFFmpeg(): FFmpegType | null {
   return ffmpeg
 }
 
@@ -221,7 +229,7 @@ export async function getMediaDuration(inputName: string): Promise<number | unde
   }
 }
 
-export function isFFmpegLoaded(): boolean {
+function isFFmpegLoaded(): boolean {
   return loaded
 }
 

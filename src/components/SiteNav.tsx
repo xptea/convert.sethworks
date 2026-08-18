@@ -1,11 +1,11 @@
 import { cn } from '@/lib/utils'
 
-export function SiteNav({ current }: { current: 'converter' | 'about' }) {
-  const linkClass = (active: boolean) => cn(
-    'rounded-lg px-3 py-1.5 text-sm transition-colors',
-    active ? 'bg-secondary text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-  )
+const linkClass = (active: boolean) => cn(
+  'rounded-lg px-3 py-1.5 text-sm transition-colors',
+  active ? 'bg-secondary text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+)
 
+export function SiteNav({ current }: { current: 'converter' | 'about' }) {
   return (
     <header className="mx-auto flex w-full max-w-3xl items-center justify-between py-4">
       <a href="/" className="flex items-center gap-2 text-sm font-semibold tracking-tight text-foreground">

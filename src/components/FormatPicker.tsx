@@ -128,6 +128,7 @@ function FormatScrollArea({ children, resetKey }: { children: ReactNode; resetKe
         >
           <div
             role="scrollbar"
+            aria-label="Format list scrollbar"
             aria-controls={id}
             aria-orientation="vertical"
             aria-valuemin={0}
@@ -217,7 +218,7 @@ export function FormatPicker({
                   aria-pressed={o.value === value}
                   variant={o.value === value ? 'default' : 'secondary'}
                   onClick={() => select(o.value)}
-                  className="h-9 min-w-0 w-full truncate px-2 text-xs font-medium transition-all focus-visible:ring-0"
+                  className="h-9 min-w-0 w-full truncate px-2 text-xs font-medium transition-colors focus-visible:ring-0"
                   title={o.label}
                 >
                   {o.label}

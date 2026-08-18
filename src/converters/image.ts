@@ -87,6 +87,25 @@ function parseSvgLength(value: string | null): number | undefined {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined
 }
 
+async function loadSvgImage(source: string): Promise<HTMLImageElement> {
+  const objectUrl = URL.createObjectURL(new Blob([source], { type: 'image/svg+xml' }))
+  const image = new Image()
+  try {
+    image.decoding = 'async'
+    const imageLoaded = new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve()
+      image.onerror = () => reject(new Error('The browser could not render this SVG.'))
+    })
+    image.src = objectUrl
+    await imageLoaded
+    return image
+  } finally {
+    image.onload = null
+    image.onerror = null
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 0)
+  }
+}
+
 async function rasterizeSvg(file: File, maxDimension: number, fillMaxDimension = false): Promise<Blob> {
   const source = await file.text()
   const parsedDocument = new DOMParser().parseFromString(source, 'image/svg+xml')
@@ -113,47 +132,35 @@ async function rasterizeSvg(file: File, maxDimension: number, fillMaxDimension =
   if (!width && height && viewBoxRatio) width = height * viewBoxRatio
   if (!height && width && viewBoxRatio) height = width / viewBoxRatio
 
-  const objectUrl = URL.createObjectURL(new Blob([source], { type: 'image/svg+xml' }))
-  try {
-    const image = new Image()
-    image.decoding = 'async'
-    await new Promise<void>((resolve, reject) => {
-      image.onload = () => resolve()
-      image.onerror = () => reject(new Error('The browser could not render this SVG.'))
-      image.src = objectUrl
-    })
+  const image = await loadSvgImage(source)
+  width = width || viewBoxWidth || image.naturalWidth || 512
+  height = height || viewBoxHeight || image.naturalHeight || 512
 
-    width = width || viewBoxWidth || image.naturalWidth || 512
-    height = height || viewBoxHeight || image.naturalHeight || 512
-
-    if ((!width || !height) && viewBoxRatio) {
-      width = width || height * viewBoxRatio
-      height = height || width / viewBoxRatio
-    }
-    if (!width || !height) {
-      width = 512
-      height = 512
-    }
-
-    const scale = fillMaxDimension
-      ? maxDimension / Math.max(width, height)
-      : Math.min(1, maxDimension / Math.max(width, height))
-    const canvas = document.createElement('canvas')
-    canvas.width = Math.max(1, Math.round(width * scale))
-    canvas.height = Math.max(1, Math.round(height * scale))
-    const context = canvas.getContext('2d')
-    if (!context) throw new Error('Could not create a canvas context for the SVG.')
-
-    context.drawImage(image, 0, 0, canvas.width, canvas.height)
-    return await new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob((blob) => {
-        if (blob) resolve(blob)
-        else reject(new Error('The browser could not rasterize this SVG.'))
-      }, 'image/png')
-    })
-  } finally {
-    URL.revokeObjectURL(objectUrl)
+  if ((!width || !height) && viewBoxRatio) {
+    width = width || height * viewBoxRatio
+    height = height || width / viewBoxRatio
   }
+  if (!width || !height) {
+    width = 512
+    height = 512
+  }
+
+  const scale = fillMaxDimension
+    ? maxDimension / Math.max(width, height)
+    : Math.min(1, maxDimension / Math.max(width, height))
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.max(1, Math.round(width * scale))
+  canvas.height = Math.max(1, Math.round(height * scale))
+  const context = canvas.getContext('2d')
+  if (!context) throw new Error('Could not create a canvas context for the SVG.')
+
+  context.drawImage(image, 0, 0, canvas.width, canvas.height)
+  return await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob)
+      else reject(new Error('The browser could not rasterize this SVG.'))
+    }, 'image/png')
+  })
 }
 
 async function convertImageFfmpeg(

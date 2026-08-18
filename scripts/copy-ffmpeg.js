@@ -1,12 +1,17 @@
 import { copyFileSync, mkdirSync, existsSync } from 'fs'
 import { dirname, join } from 'path'
 import { fileURLToPath } from 'url'
+import coreFactory from '@ffmpeg/core-mt'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const root = join(__dirname, '..')
 const publicRoot = join(root, 'public')
 const publicDir = join(publicRoot, 'ffmpeg')
-const coreDir = join(root, 'node_modules', '@ffmpeg', 'core-mt', 'dist', 'esm')
+const coreDir = dirname(fileURLToPath(import.meta.resolve('@ffmpeg/core-mt')))
+
+if (typeof coreFactory !== 'function') {
+  throw new TypeError('The @ffmpeg/core-mt package does not expose its FFmpeg core factory')
+}
 
 if (!existsSync(publicDir)) {
   mkdirSync(publicDir, { recursive: true })

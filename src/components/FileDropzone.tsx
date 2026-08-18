@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect, type DragEvent, type ChangeEvent } from 'react'
+import { useState, useRef, useCallback, useEffect, type DragEvent, type ChangeEvent, type KeyboardEvent } from 'react'
 import { cn } from '@/lib/utils'
 import { getSupportedFileType, SUPPORTED_FILE_ACCEPT } from '@/lib/file-support'
 import { Image, Video, Music, Upload } from 'lucide-react'
@@ -64,6 +64,12 @@ export function FileDropzone({ onFiles }: FileDropzoneProps) {
     [handleFiles]
   )
 
+  const onKeyDown = useCallback((e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return
+    e.preventDefault()
+    inputRef.current?.click()
+  }, [])
+
   useEffect(() => {
     const onWindowDragOver = (e: globalThis.DragEvent) => {
       e.preventDefault()
@@ -93,10 +99,13 @@ export function FileDropzone({ onFiles }: FileDropzoneProps) {
   return (
     <div
       data-testid="file-dropzone"
+      role="button"
+      tabIndex={0}
       onDrop={onDrop}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onClick={() => inputRef.current?.click()}
+      onKeyDown={onKeyDown}
       className={cn(
         'group relative mx-auto flex w-full max-w-xl cursor-pointer flex-col items-center justify-center gap-4 rounded-3xl border-2 border-dashed border-border bg-muted/40 p-12 text-center transition-all duration-200 ease-out',
         isDragging

@@ -66,7 +66,7 @@ async function getBrowserMediaDuration(file: File): Promise<number | undefined> 
   } finally {
     media.removeAttribute('src')
     media.load()
-    URL.revokeObjectURL(objectUrl)
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 0)
   }
 }
 
