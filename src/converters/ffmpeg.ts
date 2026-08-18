@@ -97,10 +97,6 @@ export async function initFFmpeg(
   }
 }
 
-function getFFmpeg(): FFmpegType | null {
-  return ffmpeg
-}
-
 export function resetFFmpeg() {
   try {
     ffmpeg?.terminate()
@@ -227,10 +223,6 @@ export async function getMediaDuration(inputName: string): Promise<number | unde
       // Ignore a missing ffprobe output file.
     }
   }
-}
-
-function isFFmpegLoaded(): boolean {
-  return loaded
 }
 
 export function getLastFFmpegError(): string {
