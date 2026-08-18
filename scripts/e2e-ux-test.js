@@ -19,8 +19,52 @@ async function run() {
   const page = await context.newPage()
   await page.goto(baseURL)
 
-  await page.locator('input[type="file"]').first().setInputFiles([imagePath, imagePath])
-  await page.waitForSelector('text=2 files added')
+  const fileInput = page.locator('input[type="file"]').first()
+  const accept = await fileInput.getAttribute('accept')
+  assert(accept && !accept.includes('*'), 'File picker still accepts unrestricted media MIME types')
+
+  const unsupportedDrop = await page.evaluateHandle(() => {
+    const transfer = new DataTransfer()
+    transfer.items.add(new File(['not media'], 'notes.txt', { type: 'text/plain' }))
+    return transfer
+  })
+  await page.getByTestId('file-dropzone').dispatchEvent('drop', { dataTransfer: unsupportedDrop })
+  await page.getByRole('alert').getByText('1 unsupported file skipped: notes.txt.', { exact: true }).waitFor()
+  assert(await page.getByText('notes.txt', { exact: true }).count() === 0, 'Unsupported file entered the queue')
+
+  await fileInput.setInputFiles(imagePath)
+  await page.getByText('image_test1.png', { exact: true }).waitFor()
+  assert(await page.getByTestId('batch-toolbar').count() === 0, 'Batch toolbar is visible for one file')
+  assert(await page.getByRole('button', { name: 'Convert all', exact: true }).count() === 0, 'Convert all is visible for one file')
+  assert(await page.getByRole('button', { name: 'Convert', exact: true }).count() === 1, 'Single-file Convert button is missing')
+
+  await fileInput.setInputFiles(imagePath)
+  await page.getByTestId('batch-toolbar').waitFor({ state: 'visible' })
+  assert(await page.getByText('2 files added', { exact: true }).count() === 0, 'File-count text is still visible')
+  const [queuePanelBox, batchToolbarBox, firstQueueItemBox] = await Promise.all([
+    page.getByTestId('queue-panel').boundingBox(),
+    page.getByTestId('batch-toolbar').boundingBox(),
+    page.getByTestId('queue-item').first().boundingBox(),
+  ])
+  assert(queuePanelBox && batchToolbarBox && firstQueueItemBox, 'Could not measure unified queue layout')
+  assert(
+    Math.abs(batchToolbarBox.x - queuePanelBox.x) <= 1 && Math.abs(batchToolbarBox.width - queuePanelBox.width) <= 2,
+    'Batch toolbar does not extend to the queue panel sides'
+  )
+  assert(
+    Math.abs(firstQueueItemBox.x - queuePanelBox.x) <= 1 && Math.abs(firstQueueItemBox.width - queuePanelBox.width) <= 2,
+    'File rows do not share the queue panel sides'
+  )
+  const firstQueueItemStyle = await page.getByTestId('queue-item').first().evaluate((element) => ({
+    borderRadius: getComputedStyle(element).borderRadius,
+    borderLeftWidth: getComputedStyle(element).borderLeftWidth,
+    borderRightWidth: getComputedStyle(element).borderRightWidth,
+  }))
+  assert(firstQueueItemStyle.borderRadius === '0px', 'File row still has its own rounded card')
+  assert(
+    firstQueueItemStyle.borderLeftWidth === '0px' && firstQueueItemStyle.borderRightWidth === '0px',
+    'File row still has separate side borders'
+  )
   const setAllImages = page.getByTestId('set-all-images')
   assert(await setAllImages.innerText() === 'JPEG', 'Matching image formats are not reflected in Set All')
   await setAllImages.click()
@@ -42,7 +86,7 @@ async function run() {
   )
   await page.keyboard.press('Escape')
 
-  const compactFormatButton = page.getByRole('button', { name: 'JPEG', exact: true }).last()
+  const compactFormatButton = page.locator('[data-testid^="item-format-"]').last()
   const compactFormatBox = await compactFormatButton.boundingBox()
   assert(compactFormatBox && compactFormatBox.width < 130, `Format button is still oversized at ${compactFormatBox?.width}px`)
 
@@ -53,13 +97,22 @@ async function run() {
   await page.goto(baseURL)
 
   await page.locator('input[type="file"]').first().setInputFiles([imagePath, videoPath])
-  await page.waitForSelector('text=2 files added')
+  await page.getByTestId('batch-toolbar').waitFor({ state: 'visible' })
 
   const toolbarBox = await page.getByRole('button', { name: 'Convert all', exact: true }).boundingBox()
   const firstFileBox = await page.getByText('image_test1.png', { exact: true }).boundingBox()
   assert(toolbarBox && firstFileBox && toolbarBox.y < firstFileBox.y, 'Batch controls are not above the files')
 
-  await page.getByRole('button', { name: 'Set all quality', exact: true }).click()
+  const setAllQualityButton = page.getByRole('button', { name: 'Set all quality', exact: true })
+  assert((await setAllQualityButton.innerText()).trim() === '', 'Set all quality still has visible text')
+  const [iconColor, fileNameColor, fileDetailsAlignment] = await Promise.all([
+    page.getByTestId('file-type-icon').first().evaluate((element) => getComputedStyle(element).color),
+    page.getByText('image_test1.png', { exact: true }).evaluate((element) => getComputedStyle(element).color),
+    page.getByTestId('file-details').first().evaluate((element) => getComputedStyle(element).textAlign),
+  ])
+  assert(iconColor === fileNameColor, 'File-type icon is still darker than the file text')
+  assert(fileDetailsAlignment === 'left', `File details are aligned ${fileDetailsAlignment} instead of left`)
+  await setAllQualityButton.click()
   const bulkSlider = page.getByRole('slider', { name: 'Output quality' })
   const sliderBox = await bulkSlider.boundingBox()
   assert(sliderBox, 'Set-all quality slider is missing')
@@ -195,6 +248,7 @@ async function run() {
   assert(!aboutText.includes('About the converter'), 'Removed About eyebrow is still visible')
   assert(!aboutText.includes('The honest limitations of local conversion'), 'Removed limitations section is still visible')
   assert(!aboutText.includes('Ready to convert something?'), 'Removed conversion callout is still visible')
+  assert(!aboutText.includes('Static hosting still serves the converter itself'), 'Removed static-hosting callout is still visible')
   assert(await page.getByRole('link', { name: 'Converter', exact: true }).getAttribute('href') === '/', 'About navigation does not return home')
   assert(await page.locator('script[type="application/ld+json"]').count() === 1, 'About structured article data is missing')
 

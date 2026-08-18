@@ -31,8 +31,9 @@ import {
   Files,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { getSupportedFileType, type SupportedFileType } from '@/lib/file-support'
 
-type FileType = 'image' | 'video' | 'audio'
+type FileType = SupportedFileType
 
 type Status = 'pending' | 'converting' | 'done' | 'error'
 
@@ -50,27 +51,10 @@ interface QueueItem {
   error?: string
 }
 
-const IMAGE_EXTS = new Set([
-  '3fr','apng','arw','avif','bmp','cr2','cr3','crw','dcr','dng','dpx','eps','erf','exr','fit','fits','fts','gif','heic','heif','icns','ico','jfif','jls','jp2','jpeg','jpg','mos','mrw','nef','odd','odg','orf','pam','pbm','pcx','pef','pfm','pgm','png','ppm','ps','psb','psd','pub','qoi','raf','ras','raw','rw2','sgi','svg','tga','tif','tiff','webp','x3f','xbm','xcf','xps'
-])
-
-const VIDEO_EXTS = new Set([
-  '3g2','3gp','3gpp','amv','avi','cavs','dv','dvr','flv','h261','h263','m2ts','m4v','mkv','mod','mov','mp4','mpeg','mpg','mts','mxf','nut','ogg','ogv','rm','rmvb','swf','ts','vob','webm','wmv','wtv','y4m'
-])
-
-const AUDIO_EXTS = new Set([
-  'aac','ac3','aif','aifc','aiff','amr','au','caf','dss','flac','m4a','m4b','mp3','oga','opus','sf2','sfark','voc','wav','weba','wma'
-])
-
 function detectType(file: File): FileType {
-  if (file.type.startsWith('image/')) return 'image'
-  if (file.type.startsWith('video/')) return 'video'
-  if (file.type.startsWith('audio/')) return 'audio'
-  const ext = file.name.split('.').pop()?.toLowerCase() || ''
-  if (IMAGE_EXTS.has(ext)) return 'image'
-  if (VIDEO_EXTS.has(ext)) return 'video'
-  if (AUDIO_EXTS.has(ext)) return 'audio'
-  return 'image'
+  const type = getSupportedFileType(file)
+  if (!type) throw new Error(`Unsupported file: ${file.name}`)
+  return type
 }
 
 function defaultFormat(file: File): ImageFormat | VideoFormat {
@@ -272,7 +256,7 @@ export function ConverterQueue() {
   const [bulkQuality, setBulkQuality] = useState(1)
 
   const addFiles = useCallback((files: File[]) => {
-    const newItems: QueueItem[] = files.map((file) => ({
+    const newItems: QueueItem[] = files.filter((file) => getSupportedFileType(file)).map((file) => ({
       id: crypto.randomUUID(),
       file,
       type: detectType(file),
@@ -341,14 +325,14 @@ export function ConverterQueue() {
     setItems((prev) => prev.map((item) => (
       item.id === id
         ? {
-            ...item,
-            gifOptions: { ...item.gifOptions, ...updates },
-            status: 'pending',
-            progress: null,
-            progressStage: undefined,
-            outputBlob: undefined,
-            error: undefined,
-          }
+          ...item,
+          gifOptions: { ...item.gifOptions, ...updates },
+          status: 'pending',
+          progress: null,
+          progressStage: undefined,
+          outputBlob: undefined,
+          error: undefined,
+        }
         : item
     )))
   }, [])
@@ -465,169 +449,169 @@ export function ConverterQueue() {
       <FileDropzone onFiles={addFiles} />
 
       {items.length > 0 && (
-        <Card size="sm" className="py-0">
-          <CardContent className="space-y-2 p-2">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-2">
-              <div className="flex items-center gap-2">
-                <p className="text-sm text-muted-foreground">
-                  {items.length} file{items.length === 1 ? '' : 's'} added
-                </p>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={clearAll}
-                  disabled={hasConverting}
-                  title={hasConverting ? 'Wait for conversions to finish before clearing the queue' : 'Remove every file from the queue'}
-                >
-                  <Trash2 className="size-3.5" />
-                  Clear all
-                </Button>
-              </div>
-              <div className="flex flex-wrap items-center justify-end gap-2">
-                {hasImages && (
-                  <FormatPicker
-                    testId="set-all-images"
-                    value={sharedImageFormat}
-                    placeholder="Set all images"
-                    options={imageFormatOptions}
-                    onChange={(v) => setAllFormats('image', v as ImageFormat)}
-                  />
-                )}
-                {hasVideos && (
-                  <FormatPicker
-                    testId="set-all-videos"
-                    value={sharedVideoFormat}
-                    placeholder="Set all videos"
-                    options={videoFormatOptions}
-                    onChange={(v) => setAllFormats('video', v as VideoFormat)}
-                  />
-                )}
-                {hasAudios && (
-                  <FormatPicker
-                    testId="set-all-audio"
-                    value={sharedAudioFormat}
-                    placeholder="Set all audio"
-                    options={audioFormatOptions}
-                    onChange={(v) => setAllFormats('audio', v as VideoFormat)}
-                  />
-                )}
-
-                <Popover.Root open={bulkQualityOpen} onOpenChange={setBulkQualityOpen}>
-                  <Popover.Trigger
+        <Card data-testid="queue-panel" size="sm" className="py-0">
+          <CardContent className="p-0">
+            {items.length > 1 && (
+              <div data-testid="batch-toolbar" className="flex flex-wrap items-center justify-between gap-3 border-b bg-muted/25 px-3 py-2.5">
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearAll}
                     disabled={hasConverting}
-                    className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-input bg-background px-3 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+                    title={hasConverting ? 'Wait for conversions to finish before clearing the queue' : 'Remove every file from the queue'}
                   >
-                    <Settings2 className="size-4" />
-                    Set all quality
-                  </Popover.Trigger>
-                  <Popover.Portal>
-                    <Popover.Positioner
-                      side="bottom"
-                      align="end"
-                      sideOffset={6}
-                      collisionPadding={8}
-                      collisionAvoidance={{ side: 'flip', align: 'shift', fallbackAxisSide: 'none' }}
-                    >
-                      <Popover.Popup className="z-50 w-64 space-y-3 rounded-xl border border-border bg-popover p-3 shadow-lg outline-none">
-                        <QualitySlider value={bulkQuality} onChange={setBulkQuality} disabled={hasConverting} />
-                        <Button
-                          className="w-full"
-                          onClick={() => {
-                            setAllQuality(bulkQuality)
-                            setBulkQualityOpen(false)
-                          }}
-                        >
-                          Apply to all files
-                        </Button>
-                      </Popover.Popup>
-                    </Popover.Positioner>
-                  </Popover.Portal>
-                </Popover.Root>
-
-                <Button onClick={convertAll} disabled={!hasPending || hasConverting}>
-                  {hasConverting ? (
-                    <Loader2 className="mr-1.5 size-4 animate-spin" />
-                  ) : (
-                    <Play className="mr-1.5 size-4" />
-                  )}
-                  {hasConverting ? 'Converting all' : 'Convert all'}
-                </Button>
-                {doneItems.length === 1 && (
-                  <Button variant="secondary" onClick={() => downloadOne(doneItems[0])}>
-                    <Download className="mr-1.5 size-4" />
-                    Download
+                    <Trash2 className="size-3.5" />
+                    Clear all
                   </Button>
-                )}
-                {doneItems.length > 1 && (
-                  <div className="flex items-center">
-                    <Button
-                      variant="secondary"
-                      onClick={downloadAsZip}
-                      className="rounded-r-none border-r border-border pr-3"
-                      title="Download all files as a ZIP"
+                </div>
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  {hasImages && (
+                    <FormatPicker
+                      testId="set-all-images"
+                      value={sharedImageFormat}
+                      placeholder="Set all images"
+                      options={imageFormatOptions}
+                      onChange={(v) => setAllFormats('image', v as ImageFormat)}
+                    />
+                  )}
+                  {hasVideos && (
+                    <FormatPicker
+                      testId="set-all-videos"
+                      value={sharedVideoFormat}
+                      placeholder="Set all videos"
+                      options={videoFormatOptions}
+                      onChange={(v) => setAllFormats('video', v as VideoFormat)}
+                    />
+                  )}
+                  {hasAudios && (
+                    <FormatPicker
+                      testId="set-all-audio"
+                      value={sharedAudioFormat}
+                      placeholder="Set all audio"
+                      options={audioFormatOptions}
+                      onChange={(v) => setAllFormats('audio', v as VideoFormat)}
+                    />
+                  )}
+
+                  <Popover.Root open={bulkQualityOpen} onOpenChange={setBulkQualityOpen}>
+                    <Popover.Trigger
+                      aria-label="Set all quality"
+                      title="Set all quality"
+                      disabled={hasConverting}
+                      className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-input bg-background text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      <FileArchive className="mr-1.5 size-4" />
-                      Download all
-                    </Button>
-                    <Popover.Root open={downloadMenuOpen} onOpenChange={setDownloadMenuOpen}>
-                      <Popover.Trigger
-                        aria-label="Choose how to download all files"
-                        title="Download options"
-                        className="inline-flex h-8 items-center justify-center rounded-r-lg bg-secondary px-2 text-secondary-foreground transition-colors hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                      <Settings2 className="size-4" />
+                    </Popover.Trigger>
+                    <Popover.Portal>
+                      <Popover.Positioner
+                        side="bottom"
+                        align="end"
+                        sideOffset={6}
+                        collisionPadding={8}
+                        collisionAvoidance={{ side: 'flip', align: 'shift', fallbackAxisSide: 'none' }}
                       >
-                        <ChevronDown
-                          className={cn('size-4 transition-transform', downloadMenuOpen && 'rotate-180')}
-                        />
-                      </Popover.Trigger>
+                        <Popover.Popup className="z-50 w-64 space-y-3 rounded-xl border border-border bg-popover p-3 shadow-lg outline-none">
+                          <QualitySlider value={bulkQuality} onChange={setBulkQuality} disabled={hasConverting} />
+                          <Button
+                            className="w-full"
+                            onClick={() => {
+                              setAllQuality(bulkQuality)
+                              setBulkQualityOpen(false)
+                            }}
+                          >
+                            Apply to all files
+                          </Button>
+                        </Popover.Popup>
+                      </Popover.Positioner>
+                    </Popover.Portal>
+                  </Popover.Root>
 
-                      <Popover.Portal>
-                        <Popover.Positioner
-                          side="bottom"
-                          align="end"
-                          sideOffset={6}
-                          collisionPadding={8}
-                          collisionAvoidance={{ side: 'flip', align: 'shift', fallbackAxisSide: 'none' }}
+                  <Button onClick={convertAll} disabled={!hasPending || hasConverting}>
+                    {hasConverting ? (
+                      <Loader2 className="mr-1.5 size-4 animate-spin" />
+                    ) : (
+                      <Play className="mr-1.5 size-4" />
+                    )}
+                    {hasConverting ? 'Converting all' : 'Convert all'}
+                  </Button>
+                  {doneItems.length === 1 && (
+                    <Button variant="secondary" onClick={() => downloadOne(doneItems[0])}>
+                      <Download className="mr-1.5 size-4" />
+                      Download
+                    </Button>
+                  )}
+                  {doneItems.length > 1 && (
+                    <div className="flex items-center">
+                      <Button
+                        variant="secondary"
+                        onClick={downloadAsZip}
+                        className="rounded-r-none border-r border-border pr-3"
+                        title="Download all files as a ZIP"
+                      >
+                        <FileArchive className="mr-1.5 size-4" />
+                        Download all
+                      </Button>
+                      <Popover.Root open={downloadMenuOpen} onOpenChange={setDownloadMenuOpen}>
+                        <Popover.Trigger
+                          aria-label="Choose how to download all files"
+                          title="Download options"
+                          className="inline-flex h-8 items-center justify-center rounded-r-lg bg-secondary px-2 text-secondary-foreground transition-colors hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
                         >
-                          <Popover.Popup className="z-50 w-60 rounded-xl border border-border bg-popover p-1.5 shadow-lg outline-none">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setDownloadMenuOpen(false)
-                                void downloadAsZip()
-                              }}
-                              className="flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left outline-none transition-colors hover:bg-accent focus-visible:bg-accent"
-                            >
-                              <FileArchive className="mt-0.5 size-4 shrink-0" />
-                              <span>
-                                <span className="block text-sm font-medium text-foreground">Download as ZIP</span>
-                                <span className="block text-xs text-muted-foreground">Default · one compressed download</span>
-                              </span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setDownloadMenuOpen(false)
-                                downloadSeparately()
-                              }}
-                              className="flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left outline-none transition-colors hover:bg-accent focus-visible:bg-accent"
-                            >
-                              <Files className="mt-0.5 size-4 shrink-0" />
-                              <span>
-                                <span className="block text-sm font-medium text-foreground">Download separately</span>
-                                <span className="block text-xs text-muted-foreground">Queue each converted file</span>
-                              </span>
-                            </button>
-                          </Popover.Popup>
-                        </Popover.Positioner>
-                      </Popover.Portal>
-                    </Popover.Root>
-                  </div>
-                )}
-              </div>
-            </div>
+                          <ChevronDown
+                            className={cn('size-4 transition-transform', downloadMenuOpen && 'rotate-180')}
+                          />
+                        </Popover.Trigger>
 
-            <div className="space-y-3">
+                        <Popover.Portal>
+                          <Popover.Positioner
+                            side="bottom"
+                            align="end"
+                            sideOffset={6}
+                            collisionPadding={8}
+                            collisionAvoidance={{ side: 'flip', align: 'shift', fallbackAxisSide: 'none' }}
+                          >
+                            <Popover.Popup className="z-50 w-60 rounded-xl border border-border bg-popover p-1.5 shadow-lg outline-none">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setDownloadMenuOpen(false)
+                                  void downloadAsZip()
+                                }}
+                                className="flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left outline-none transition-colors hover:bg-accent focus-visible:bg-accent"
+                              >
+                                <FileArchive className="mt-0.5 size-4 shrink-0" />
+                                <span>
+                                  <span className="block text-sm font-medium text-foreground">Download as ZIP</span>
+                                  <span className="block text-xs text-muted-foreground">Default · one compressed download</span>
+                                </span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setDownloadMenuOpen(false)
+                                  downloadSeparately()
+                                }}
+                                className="flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left outline-none transition-colors hover:bg-accent focus-visible:bg-accent"
+                              >
+                                <Files className="mt-0.5 size-4 shrink-0" />
+                                <span>
+                                  <span className="block text-sm font-medium text-foreground">Download separately</span>
+                                  <span className="block text-xs text-muted-foreground">Queue each converted file</span>
+                                </span>
+                              </button>
+                            </Popover.Popup>
+                          </Popover.Positioner>
+                        </Popover.Portal>
+                      </Popover.Root>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div data-testid="queue-list" className="divide-y divide-border">
               {items.map((item) => {
                 let formatOptions = imageFormatOptions
                 let icon = <Image className="size-5" />
@@ -646,9 +630,10 @@ export function ConverterQueue() {
                 return (
                   <div
                     key={item.id}
+                    data-testid="queue-item"
                     className={cn(
-                      'relative flex flex-col gap-2 overflow-hidden rounded-xl border p-3 transition-colors',
-                      item.status === 'converting' ? 'border-primary/40 bg-primary/5' : 'border-border bg-card'
+                      'relative flex flex-col gap-2 p-3 transition-colors',
+                      item.status === 'converting' ? 'bg-primary/5' : 'bg-transparent'
                     )}
                     onContextMenu={(e) => {
                       e.preventDefault()
@@ -657,14 +642,14 @@ export function ConverterQueue() {
                   >
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex min-w-0 items-center gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                        <div data-testid="file-type-icon" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary text-foreground">
                           {icon}
                         </div>
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium text-foreground" title={item.file.name}>
+                        <div data-testid="file-details" className="min-w-0 text-left">
+                          <p className="truncate text-left text-sm font-medium text-foreground" title={item.file.name}>
                             {item.file.name}
                           </p>
-                          <p className="truncate leading-5 text-xs text-muted-foreground">
+                          <p className="w-full truncate text-left text-xs leading-5 text-muted-foreground">
                             {item.status === 'done' && item.outputBlob ? (
                               <SizeComparison original={item.file.size} converted={item.outputBlob.size} />
                             ) : (
@@ -676,6 +661,7 @@ export function ConverterQueue() {
 
                       <div className="flex shrink-0 flex-row flex-wrap items-center gap-2">
                         <FormatPicker
+                          testId={`item-format-${item.id}`}
                           value={item.format}
                           options={formatOptions}
                           onChange={(v) => setFormat(item.id, v as ImageFormat | VideoFormat)}
@@ -795,7 +781,7 @@ export function ConverterQueue() {
                           Download
                         </ContextMenuItem>
                       ) : item.status === 'converting' ? (
-                        <ContextMenuItem onClick={() => {}} disabled>
+                        <ContextMenuItem onClick={() => { }} disabled>
                           <Loader2 className="size-4" />
                           Converting
                         </ContextMenuItem>

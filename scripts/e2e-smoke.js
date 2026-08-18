@@ -42,7 +42,7 @@ async function run() {
   }
   console.log('Both conversions finished')
 
-  const downloadAll = page.getByRole('button', { name: 'Download all' })
+  const downloadAll = page.getByRole('button', { name: 'Download all', exact: true })
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     downloadAll.click(),

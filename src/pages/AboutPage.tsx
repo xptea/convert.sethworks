@@ -5,7 +5,6 @@ import {
   Cpu,
   FileLock2,
   Gauge,
-  ShieldCheck,
 } from 'lucide-react'
 import { SiteFooter } from '@/components/SiteFooter'
 import { SiteNav } from '@/components/SiteNav'
@@ -94,12 +93,6 @@ export function AboutPage() {
             <p>
               This site uses a different architecture. Cloudflare Pages serves the same kinds of static assets as any ordinary website: HTML, CSS, JavaScript, a small worker, and a WebAssembly codec bundle. Once those application files arrive, your browser does the conversion work. The app has no upload endpoint, user account, conversion database, or remote job queue.
             </p>
-            <div className="flex gap-3 rounded-xl border border-emerald-900/60 bg-emerald-950/25 p-4 text-emerald-100">
-              <ShieldCheck className="mt-0.5 size-5 shrink-0" />
-              <p className="text-sm leading-6">
-                Static hosting still serves the converter itself, but serving the tool is not the same as receiving the files you open with it. Your selected media is never placed in an HTTP upload request by the app.
-              </p>
-            </div>
           </Section>
 
           <Section id="what-happens" title="What happens when you drop a file">

@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect, type DragEvent, type ChangeEvent } from 'react'
 import { cn } from '@/lib/utils'
+import { getSupportedFileType, SUPPORTED_FILE_ACCEPT } from '@/lib/file-support'
 import { Image, Video, Music, Upload } from 'lucide-react'
 
 interface FileDropzoneProps {
@@ -8,13 +9,27 @@ interface FileDropzoneProps {
 
 export function FileDropzone({ onFiles }: FileDropzoneProps) {
   const [isDragging, setIsDragging] = useState(false)
+  const [rejectionMessage, setRejectionMessage] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const handleFiles = useCallback(
     (fileList: FileList | null) => {
       if (!fileList || fileList.length === 0) return
       const files = Array.from(fileList)
-      onFiles(files)
+      const supported = files.filter((file) => getSupportedFileType(file) !== undefined)
+      const rejected = files.filter((file) => getSupportedFileType(file) === undefined)
+
+      if (rejected.length > 0) {
+        const names = rejected.slice(0, 3).map((file) => file.name).join(', ')
+        const remaining = rejected.length - 3
+        setRejectionMessage(
+          `${rejected.length} unsupported file${rejected.length === 1 ? '' : 's'} skipped: ${names}${remaining > 0 ? ` and ${remaining} more` : ''}.`
+        )
+      } else {
+        setRejectionMessage(null)
+      }
+
+      if (supported.length > 0) onFiles(supported)
     },
     [onFiles]
   )
@@ -77,6 +92,7 @@ export function FileDropzone({ onFiles }: FileDropzoneProps) {
 
   return (
     <div
+      data-testid="file-dropzone"
       onDrop={onDrop}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
@@ -91,7 +107,7 @@ export function FileDropzone({ onFiles }: FileDropzoneProps) {
       <input
         ref={inputRef}
         type="file"
-        accept="image/*,video/*,audio/*,.3fr,.apng,.arw,.avif,.bmp,.cr2,.cr3,.crw,.dcr,.dng,.dpx,.eps,.erf,.exr,.fit,.fits,.fts,.gif,.heic,.heif,.icns,.ico,.jfif,.jls,.jp2,.jpeg,.jpg,.mos,.mrw,.nef,.odd,.odg,.orf,.pam,.pbm,.pcx,.pef,.pfm,.pgm,.png,.ppm,.ps,.psb,.psd,.pub,.qoi,.raf,.ras,.raw,.rw2,.sgi,.svg,.tga,.tif,.tiff,.webp,.x3f,.xbm,.xcf,.xps,.3g2,.3gp,.3gpp,.amv,.avi,.cavs,.dv,.dvr,.flv,.h261,.h263,.m2ts,.m4v,.mkv,.mod,.mov,.mp4,.mpeg,.mpg,.mts,.mxf,.nut,.ogg,.ogv,.rm,.rmvb,.swf,.ts,.vob,.webm,.wmv,.wtv,.y4m,.aac,.ac3,.aif,.aifc,.aiff,.amr,.au,.caf,.dss,.flac,.m4a,.m4b,.mp3,.oga,.opus,.sf2,.sfark,.voc,.wav,.weba,.wma"
+        accept={SUPPORTED_FILE_ACCEPT}
         multiple
         className="hidden"
         onChange={onChange}
@@ -100,7 +116,7 @@ export function FileDropzone({ onFiles }: FileDropzoneProps) {
       <div
         className={cn(
           'flex h-20 w-20 items-center justify-center rounded-2xl bg-secondary text-muted-foreground transition-transform duration-200',
-          isDragging ? 'scale-110 text-white' : 'group-hover:scale-110'
+          isDragging ? 'scale-110 bg-black text-white' : 'group-hover:scale-110'
         )}
       >
         <Upload className="size-10" />
@@ -126,6 +142,12 @@ export function FileDropzone({ onFiles }: FileDropzoneProps) {
           <Music className="size-4" /> Audio
         </span>
       </div>
+
+      {rejectionMessage && (
+        <p role="alert" className="max-w-md rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {rejectionMessage}
+        </p>
+      )}
     </div>
   )
 }
