@@ -250,8 +250,8 @@ async function run() {
   assert(downloadPath, 'PNG download has no path')
   assert(readFileSync(downloadPath).equals(readFileSync(imagePath)), 'PNG output did not preserve bytes with metadata removal disabled')
 
-  const footerLink = page.getByRole('link', { name: 'sethworks.xyz', exact: true })
-  assert(await footerLink.getAttribute('href') === 'https://sethworks.xyz', 'Footer link is incorrect')
+  const footerLink = page.getByRole('link', { name: 'seths.app', exact: true })
+  assert(await footerLink.getAttribute('href') === 'https://seths.app', 'Footer link is incorrect')
   assert(
     await page.locator('footer').evaluate((footer) => getComputedStyle(footer).borderTopWidth === '0px'),
     'Footer divider is still visible'
