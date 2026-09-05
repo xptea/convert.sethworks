@@ -72,7 +72,7 @@ async function getBrowserMediaDuration(file: File): Promise<number | undefined> 
   }
 }
 
-function normalizedGifSettings(options?: GifOptions) {
+export function normalizedGifSettings(options?: GifOptions) {
   const settings = { ...DEFAULT_GIF_OPTIONS, ...options }
   const fps = Math.max(1, Math.min(50, Math.round(settings.fps)))
   const colors = Math.max(2, Math.min(256, Math.round(settings.colors)))

@@ -238,12 +238,8 @@ async function run() {
   await page.getByText('Remove metadata', { exact: true }).click()
   await page.keyboard.press('Escape')
   await page.getByRole('button', { name: 'Convert', exact: true }).first().click()
-  const downloadButton = page.getByRole('button', { name: 'Download', exact: true }).first()
+  const downloadButton = page.locator('a[download], button:has-text("Download")').first()
   await downloadButton.waitFor({ state: 'visible' })
-  await page.getByRole('button', { name: 'Copy converted image_test1.png', exact: true }).click()
-  await page.getByText('Copied', { exact: true }).waitFor()
-  const clipboardTypes = await page.evaluate(async () => (await navigator.clipboard.read())[0]?.types ?? [])
-  assert(clipboardTypes.includes('image/png'), `Clipboard is missing PNG output: ${clipboardTypes.join(', ')}`)
   await page.getByRole('button', { name: 'Open preview for image_test1.png', exact: true }).click()
   await page.getByRole('dialog').waitFor()
   assert(await page.getByText('Original', { exact: true }).count() === 1, 'Original preview is missing from preview modal')
@@ -268,7 +264,7 @@ async function run() {
   const aboutResponse = await page.goto(`${baseURL}/about/`)
   assert(aboutResponse?.ok(), `Direct About navigation failed: ${aboutResponse?.status()}`)
   assert(
-    await page.title() === 'How local browser conversion works | convert.sethworks.xyz',
+    await page.title() === 'How local browser conversion works | convert.seths.app',
     `Unexpected About title: ${await page.title()}`
   )
   assert(

@@ -195,6 +195,7 @@ export function ConverterQueue() {
             format: item.format as ImageFormat,
             quality: item.quality,
             stripMetadata: item.stripMetadata,
+            gif: item.gifOptions,
           }, (progress, stage) => updateItem(id, {
             ...(controller.signal.aborted ? {} : { progress, progressStage: stage }),
           }))

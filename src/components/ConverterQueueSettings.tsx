@@ -75,7 +75,7 @@ export function GifSettings({
   return (
     <div className="space-y-3">
       <div>
-        <p className="text-sm font-medium text-foreground">Animated GIF settings</p>
+        <p className="text-sm font-medium text-foreground">GIF settings</p>
         <p className="mt-1 text-[11px] leading-4 text-muted-foreground">
           GIF has no normal bitrate setting. Resolution, FPS, colors, and dithering control quality and file size.
         </p>

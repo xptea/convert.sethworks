@@ -1,6 +1,7 @@
 import { findImageDef, getImageFormatExt, type ImageFormat } from '@/lib/formats'
 import { initFFmpeg, execFFmpeg, getLastFFmpegError, resetFFmpeg } from './ffmpeg'
 import { createProgressReporter, type ConversionProgressCallback } from './progress'
+import { normalizedGifSettings, type GifOptions } from './video'
 
 export type { ImageFormat }
 
@@ -8,6 +9,7 @@ export interface ImageOptions {
   format: ImageFormat
   quality: number
   stripMetadata?: boolean
+  gif?: GifOptions
 }
 
 export { downloadBlob } from '@/lib/download'
@@ -216,10 +218,13 @@ async function convertImageFfmpeg(
       '-filter_threads', '1',
       '-filter_complex_threads', '1',
       '-i', inputName,
-      '-frames:v', '1',
       '-y',
       '-threads', '1',
     ]
+
+    if (def.value !== 'gif') {
+      args.push('-frames:v', '1')
+    }
 
     if (def.value === 'jpg') {
       args.push('-qscale:v', String(qscale))
@@ -229,10 +234,17 @@ async function convertImageFfmpeg(
       args.push('-c:v', 'png')
     } else if (def.value === 'bmp') {
       args.push('-c:v', 'bmp')
+    } else if (def.value === 'gif') {
+      const gif = normalizedGifSettings(options.gif)
+      const filter = [
+        `${gif.frameFilter},split[palette_source][frames]`,
+        `[palette_source]palettegen=max_colors=${gif.colors}:stats_mode=single[palette]`,
+        `[frames][palette]paletteuse=dither=${gif.dither}:diff_mode=rectangle:new=1`,
+      ].join(';')
+      args.push('-vf', filter, '-loop', gif.loop ? '0' : '-1')
     } else {
       const codecMap: Record<string, string> = {
         tiff: 'tiff',
-        gif: 'gif',
         tga: 'targa',
         ppm: 'ppm',
         pgm: 'pgm',

@@ -13,9 +13,10 @@ export function FileDropzone({ onFiles }: FileDropzoneProps) {
   const inputRef = useRef<HTMLInputElement>(null)
 
   const handleFiles = useCallback(
-    (fileList: FileList | null) => {
-      if (!fileList || fileList.length === 0) return
+    (fileList: FileList | File[] | null) => {
+      if (!fileList) return
       const files = Array.from(fileList)
+      if (files.length === 0) return
       const supported = files.filter((file) => getSupportedFileType(file) !== undefined)
       const rejected = files.filter((file) => getSupportedFileType(file) === undefined)
 
@@ -86,15 +87,45 @@ export function FileDropzone({ onFiles }: FileDropzoneProps) {
       handleFiles(e.dataTransfer?.files ?? null)
     }
     const onWindowPaste = (event: ClipboardEvent) => {
-      const files = Array.from(event.clipboardData?.items ?? [])
+      const clipboardData = event.clipboardData
+      if (!clipboardData) return
+
+      // If clipboard contains HTML with an embedded data URL (such as a converted GIF or WebP copied from the app),
+      // extract the original full-fidelity file and filename instead of falling back to a synthetic PNG.
+      const html = clipboardData.getData('text/html')
+      if (html) {
+        const match = html.match(/<img[^>]+src=["'](data:(image\/[^;]+);base64,([^"']+))["'](?:[^>]*alt=["']([^"']*)["'])?/i)
+        if (match) {
+          const [, , mimeType, base64Data, altName] = match
+          if (mimeType && mimeType !== 'image/png') {
+            try {
+              const binary = atob(base64Data)
+              const bytes = new Uint8Array(binary.length)
+              for (let i = 0; i < binary.length; i++) {
+                bytes[i] = binary.charCodeAt(i)
+              }
+              const ext = mimeType.split('/')[1]?.replace(/^[^+]+\+/, '') || 'gif'
+              const fileName = altName
+                ? altName.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+                : `pasted-image.${ext}`
+              const file = new File([bytes], fileName, { type: mimeType })
+              event.preventDefault()
+              handleFiles([file])
+              return
+            } catch {
+              // fallback to standard file extraction below
+            }
+          }
+        }
+      }
+
+      const files = Array.from(clipboardData.items ?? [])
         .filter((item) => item.kind === 'file')
         .map((item) => item.getAsFile())
         .filter((file): file is File => file !== null)
       if (files.length === 0) return
       event.preventDefault()
-      const transfer = new DataTransfer()
-      files.forEach((file) => transfer.items.add(file))
-      handleFiles(transfer.files)
+      handleFiles(files)
     }
 
     window.addEventListener('dragover', onWindowDragOver as EventListener)
@@ -138,7 +169,7 @@ export function FileDropzone({ onFiles }: FileDropzoneProps) {
       <div
         className={cn(
           'flex h-20 w-20 items-center justify-center rounded-2xl bg-secondary text-muted-foreground transition-transform duration-200',
-          isDragging ? 'scale-110 bg-black text-white' : 'group-hover:scale-110'
+          isDragging ? 'scale-110 bg-transparent text-white' : 'group-hover:scale-110'
         )}
       >
         <Upload className="size-10" />

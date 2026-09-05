@@ -17,7 +17,7 @@ export function SiteNav({ current }: { current: 'converter' | 'about' }) {
           className="size-8 shrink-0"
           aria-hidden="true"
         />
-        <span>convert.sethworks.xyz</span>
+        <span>convert.seths.app</span>
       </a>
       <nav aria-label="Primary navigation" className="flex items-center gap-1">
         <a href="/" aria-current={current === 'converter' ? 'page' : undefined} className={linkClass(current === 'converter')}>

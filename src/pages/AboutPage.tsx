@@ -45,7 +45,7 @@ export function AboutPage() {
                 How your files are converted without leaving your device
               </h1>
               <p className="max-w-2xl text-pretty text-lg leading-8 text-muted-foreground">
-                convert.sethworks.xyz is a static website that turns your browser into the conversion computer. There is no media upload server behind it: your files are read, processed, and downloaded locally in the tab you already have open.
+                convert.seths.app is a static website that turns your browser into the conversion computer. There is no media upload server behind it: your files are read, processed, and downloaded locally in the tab you already have open.
               </p>
               <p className="text-sm text-muted-foreground">
                 <time dateTime="2026-08-17">August 17, 2026</time>

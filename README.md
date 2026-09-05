@@ -33,4 +33,4 @@ Configure the Pages project with:
 
 No Pages Functions, server, database, or runtime environment variables are required. The `public/_headers` file enables cross-origin isolation for multithreaded FFmpeg and tells Cloudflare that the generated WASM asset is already gzip-compressed.
 
-Point the production custom domain at `convert.sethworks.xyz`. Preview deployments on `pages.dev` receive Cloudflare's automatic `X-Robots-Tag: noindex` header, while the canonical URLs, sitemap, and structured data consistently reference the production domain.
+Point the production custom domain at `convert.seths.app`. Preview deployments on `pages.dev` receive Cloudflare's automatic `X-Robots-Tag: noindex` header, while the canonical URLs, sitemap, and structured data consistently reference the production domain.

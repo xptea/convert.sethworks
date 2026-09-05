@@ -25,6 +25,8 @@ export function MediaPreview({
   const [stillUrl, setStillUrl] = useState('')
   const [failed, setFailed] = useState(false)
 
+  const [isHovered, setIsHovered] = useState(false)
+
   useEffect(() => {
     const next = URL.createObjectURL(blob)
     setUrl(next)
@@ -71,15 +73,19 @@ export function MediaPreview({
       ? <Video className="size-5" />
       : <Music className="size-5" />
 
+  const imageSrc = (autoPlay || isHovered || !stillUrl) ? url : stillUrl
+
   return (
     <div
       className={cn('flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-secondary text-foreground', className)}
       title={label}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       {!url || failed || (type === 'audio' && !controls) ? fallback : type === 'image' ? (
-        blob.type === 'image/gif' && !stillUrl
+        blob.type === 'image/gif' && !imageSrc
           ? fallback
-          : <img src={stillUrl || url} alt={label} className={cn('h-full w-full', contain ? 'object-contain' : 'object-cover')} onError={() => setFailed(true)} />
+          : <img src={imageSrc} alt={label} className={cn('h-full w-full', contain ? 'object-contain' : 'object-cover')} onError={() => setFailed(true)} />
       ) : type === 'audio' ? (
         <audio src={url} aria-label={label} controls className="w-full" onError={() => setFailed(true)} />
       ) : (
@@ -128,7 +134,7 @@ export function MediaPreviewDialog({
         title={`Preview ${fileName}`}
         className="group relative block shrink-0 overflow-hidden rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
       >
-        <MediaPreview blob={source} type={type} label={`Preview of ${fileName}`} className="h-10 w-10" />
+        <MediaPreview blob={output || source} type={output ? outputType : type} label={`Preview of ${fileName}`} className="h-10 w-10" />
         <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg border border-white/15 bg-black/30 text-white opacity-0 shadow-inner backdrop-blur-[2px] transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
           <Eye className="size-4 drop-shadow" aria-hidden="true" />
         </span>

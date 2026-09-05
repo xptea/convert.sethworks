@@ -1,13 +1,12 @@
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Popover } from '@base-ui/react/popover'
 import { FormatPicker } from './FormatPicker'
 import { GifSettings, MetadataSetting, QualitySlider } from './ConverterQueueSettings'
 import { MediaPreviewDialog } from './MediaPreview'
 import { Button } from '@/components/ui/button'
+import { buttonVariants } from '@/components/ui/button-variants'
 import { ContextMenu, ContextMenuItem } from '@/components/ui/context-menu'
 import {
-  Check,
-  Copy,
   Download,
   Play,
   Settings2,
@@ -15,10 +14,9 @@ import {
   X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { ImageFormat } from '@/converters/image'
-import type { GifOptions, VideoFormat } from '@/converters/video'
+import { makeImageFilename, type ImageFormat } from '@/converters/image'
+import { makeVideoFilename, type GifOptions, type VideoFormat } from '@/converters/video'
 import type { ContextMenuState, FormatOption, QueueItem } from './converter-queue-types'
-import { copyImageBlob } from '@/lib/download'
 
 interface ConverterQueueItemProps {
   item: QueueItem
@@ -89,27 +87,48 @@ export function ConverterQueueItem({
   onSetSettingsId,
   onCloseContextMenu,
 }: ConverterQueueItemProps) {
-  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle')
   const progressPercent = item.progress === null
     ? null
     : Math.min(100, Math.max(0, Math.round(item.progress * 100)))
-  const isAnimatedGif = item.type === 'video' && item.format === 'gif'
+  const isGif = item.format === 'gif'
   const detailParts = [
     formatBytes(item.file.size),
     item.mediaInfo?.width && item.mediaInfo.height ? `${item.mediaInfo.width}×${item.mediaInfo.height}` : undefined,
     formatDuration(item.mediaInfo?.duration),
   ].filter(Boolean)
 
-  async function copyOutput() {
-    if (!item.outputBlob) return
-    try {
-      await copyImageBlob(item.outputBlob)
-      setCopyState('copied')
-      window.setTimeout(() => setCopyState('idle'), 1800)
-    } catch {
-      setCopyState('error')
-      window.setTimeout(() => setCopyState('idle'), 2500)
+  const outputFilename = useMemo(() => {
+    if (!item.outputBlob) return ''
+    return item.type === 'image'
+      ? makeImageFilename(item.file, item.format as ImageFormat)
+      : makeVideoFilename(item.file, item.format as VideoFormat)
+  }, [item.outputBlob, item.file, item.format, item.type])
+
+  const [outputUrl, setOutputUrl] = useState('')
+  useEffect(() => {
+    if (!item.outputBlob) {
+      setOutputUrl('')
+      return
     }
+    const url = URL.createObjectURL(item.outputBlob)
+    setOutputUrl(url)
+    return () => URL.revokeObjectURL(url)
+  }, [item.outputBlob])
+
+  function handleDragStart(e: React.DragEvent) {
+    if (!item.outputBlob || !outputUrl) return
+    const file = new File([item.outputBlob], outputFilename, {
+      type: item.outputBlob.type || (item.format === 'gif' ? 'image/gif' : undefined),
+    })
+    e.dataTransfer.effectAllowed = 'copy'
+    try {
+      e.dataTransfer.items.add(file)
+    } catch {
+      // some browsers restrict items.add during dragstart
+    }
+    e.dataTransfer.setData('DownloadURL', `${file.type}:${outputFilename}:${outputUrl}`)
+    e.dataTransfer.setData('text/plain', outputFilename)
+    e.dataTransfer.setData('text/uri-list', outputUrl)
   }
 
   return (
@@ -120,13 +139,26 @@ export function ConverterQueueItem({
         item.status === 'converting' ? 'bg-primary/5' : 'bg-transparent'
       )}
       onContextMenu={(event) => {
+        const target = event.target as HTMLElement | null
+        if (target && target.closest('[data-testid="file-type-icon"]')) {
+          return
+        }
         event.preventDefault()
         onContextMenu(item.id, event.clientX, event.clientY)
       }}
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">
-          <div data-testid="file-type-icon" className="shrink-0 text-foreground">
+          <div
+            data-testid="file-type-icon"
+            className={cn(
+              'shrink-0 text-foreground',
+              item.status === 'done' && 'cursor-grab active:cursor-grabbing'
+            )}
+            draggable={item.status === 'done' && !!item.outputBlob}
+            onDragStart={handleDragStart}
+            title={item.status === 'done' ? 'Drag file into Discord, folders, or other apps' : undefined}
+          >
             <MediaPreviewDialog
               source={item.file}
               output={item.outputBlob}
@@ -197,7 +229,7 @@ export function ConverterQueueItem({
                     disabled={item.status === 'converting'}
                   />
 
-                  {isAnimatedGif && (
+                  {isGif && (
                     <GifSettings
                       value={item.gifOptions}
                       onChange={(updates) => onSetGifOptions(item.id, updates)}
@@ -217,23 +249,26 @@ export function ConverterQueueItem({
 
           <div className="flex items-center gap-2">
             {item.status === 'done' ? (
-              <>
-                {item.type === 'image' && (
-                  <Button
-                    variant="outline"
-                    onClick={() => void copyOutput()}
-                    aria-label={`Copy converted ${item.file.name}`}
-                    title={copyState === 'error' ? 'This browser could not copy the image' : 'Copy converted image'}
-                  >
-                    {copyState === 'copied' ? <Check className="size-4" /> : <Copy className="size-4" />}
-                    <span className="sr-only">{copyState === 'copied' ? 'Copied' : 'Copy'}</span>
-                  </Button>
-                )}
-                <Button variant="outline" onClick={() => onDownload(item)}>
-                  <Download className="mr-1.5 size-4" />
-                  Download
-                </Button>
-              </>
+              <a
+                role="button"
+                href={outputUrl}
+                download={outputFilename}
+                onClick={(e) => {
+                  e.preventDefault()
+                  onDownload(item)
+                }}
+                draggable={true}
+                onDragStart={handleDragStart}
+                className={cn(buttonVariants({ variant: 'outline' }), 'cursor-pointer')}
+                title={
+                  item.format === 'gif'
+                    ? 'Download GIF (or drag directly into Discord or folders)'
+                    : 'Click to download, or drag file directly into apps or folders'
+                }
+              >
+                <Download className="mr-1.5 size-4" />
+                Download
+              </a>
             ) : item.status === 'converting' ? (
               <Button variant="outline" onClick={() => onCancel(item.id)}>
                 <X className="mr-1.5 size-4" />

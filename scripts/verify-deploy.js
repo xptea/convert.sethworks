@@ -73,8 +73,8 @@ assert(headers.includes('Content-Encoding: gzip'), 'WASM gzip response header is
 assert(headers.includes('Content-Type: application/wasm'), 'WASM content type header is missing')
 
 const sitemap = read('sitemap.xml').toString('utf8')
-assert(sitemap.includes('https://convert.sethworks.xyz/'), 'Homepage is missing from sitemap')
-assert(sitemap.includes('https://convert.sethworks.xyz/about/'), 'About page is missing from sitemap')
+assert(sitemap.includes('https://convert.seths.app/'), 'Homepage is missing from sitemap')
+assert(sitemap.includes('https://convert.seths.app/about/'), 'About page is missing from sitemap')
 
 const largest = files
   .map((relativePath) => ({ relativePath, size: statSync(join(dist, relativePath)).size }))
